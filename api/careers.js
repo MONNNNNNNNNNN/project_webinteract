@@ -6,9 +6,17 @@ function simulatedJobs(interest) {
   return jobs;
 }
 
+const INTEREST_QUERY_TERMS = {
+  "3D & Animation": "3D animation artist",
+  "Game Dev": "game developer",
+  "AI & Data": "AI data science",
+  Software: "software developer",
+};
+
 async function liveJobs(interest) {
-  const query = interest ? `${interest} entry level Thailand` : "digital media engineering Thailand";
-  const url = `https://jsearch.p.rapidapi.com/search?query=${encodeURIComponent(query)}&num_pages=1`;
+  const term = INTEREST_QUERY_TERMS[interest] || "digital media";
+  const query = `${term} jobs Thailand`;
+  const url = `https://jsearch.p.rapidapi.com/search-v2?query=${encodeURIComponent(query)}&num_pages=1&country=th&date_posted=all`;
 
   const res = await fetch(url, {
     headers: {
@@ -19,14 +27,17 @@ async function liveJobs(interest) {
 
   if (!res.ok) throw new Error(`JSearch API ${res.status}`);
   const data = await res.json();
+  const jobs = data.data?.jobs || [];
 
-  return (data.data || []).map((j) => ({
+  return jobs.map((j) => ({
     id: j.job_id,
     title: j.job_title,
     company: j.employer_name,
-    location: j.job_city ? `${j.job_city}, ${j.job_country}` : j.job_country,
+    location: j.job_city
+      ? `${j.job_city}, ${j.job_country}`
+      : (j.job_location || "").split("•")[0].trim() || j.job_country || "Thailand",
     interest: interest || "",
-    postedAt: j.job_posted_at_datetime_utc,
+    postedAt: j.job_posted_at_datetime_utc || j.job_posted_at || null,
     url: j.job_apply_link,
   }));
 }
