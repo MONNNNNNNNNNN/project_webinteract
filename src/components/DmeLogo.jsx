@@ -1,20 +1,27 @@
 export default function DmeLogo({ className = "h-8 w-8" }) {
   return (
-    <svg viewBox="0 0 64 64" fill="none" className={className} aria-hidden="true">
-      <path
-        d="M32 6l4.5 2.6 5-1.3 3 4.3 5.2.7 1 5.1 4.6 2.5-1.4 5 2.6 4.5-3.6 3.7.6 5.2-4.9 2-2 4.8-5.2-.4-3.4 3.9-4.9-1.8-4.9 1.8-3.4-3.9-5.2.4-2-4.8-4.9-2 .6-5.2-3.6-3.7 2.6-4.5-1.4-5 4.6-2.5 1-5.1 5.2-.7 3-4.3 5 1.3z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinejoin="round"
+    <svg viewBox="0 0 64 64" className={className} aria-hidden="true">
+      <circle
+        cx="32"
+        cy="32"
+        r="22"
+        fill="none"
+        stroke="#8a2c2c"
+        strokeWidth="9"
+        strokeDasharray="7.5 5"
       />
-      <circle cx="32" cy="32" r="7" fill="currentColor" />
-      <g stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-        <path d="M32 25v-6M32 39v6M25 32h-6M39 32h6" />
+      <circle cx="32" cy="32" r="16" fill="#8a2c2c" />
+      <circle cx="32" cy="32" r="7" fill="#f97316" />
+      <g stroke="#fdf2e9" strokeWidth="1.6" strokeLinecap="round">
+        <line x1="32" y1="25" x2="32" y2="19" />
+        <line x1="32" y1="39" x2="32" y2="45" />
+        <line x1="25" y1="32" x2="19" y2="32" />
+        <line x1="39" y1="32" x2="45" y2="32" />
       </g>
-      <circle cx="19" cy="32" r="2.4" fill="currentColor" />
-      <circle cx="45" cy="32" r="2.4" fill="currentColor" />
-      <circle cx="32" cy="19" r="2.4" fill="currentColor" />
-      <circle cx="32" cy="45" r="2.4" fill="currentColor" />
+      <circle cx="32" cy="19" r="2.2" fill="#fdf2e9" />
+      <circle cx="32" cy="45" r="2.2" fill="#fdf2e9" />
+      <circle cx="19" cy="32" r="2.2" fill="#fdf2e9" />
+      <circle cx="45" cy="32" r="2.2" fill="#fdf2e9" />
     </svg>
   );
 }

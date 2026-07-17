@@ -1,11 +1,30 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 // Iframe contract from docs/3d-integration-handoff.md: teammate drops a
 // self-contained static web build into public/cdlc-sim/ (index.html + assets),
 // and this page embeds it via iframe. Nothing 3D-specific is implemented here —
 // public/cdlc-sim/ is empty until that handoff happens.
+//
+// The build is checked for first instead of always rendering the iframe:
+// with no build present, /cdlc-sim/index.html 404s, but an iframe still
+// fires "load" on an error page, which would hide the placeholder and show
+// a blank/broken frame instead of the "coming soon" message.
 export default function ThreeDWorld() {
-  const [loaded, setLoaded] = useState(false);
+  const [available, setAvailable] = useState(null); // null = checking, true/false = result
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/cdlc-sim/index.html", { method: "HEAD" })
+      .then((res) => {
+        if (!cancelled) setAvailable(res.ok);
+      })
+      .catch(() => {
+        if (!cancelled) setAvailable(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-12">
@@ -17,7 +36,14 @@ export default function ThreeDWorld() {
       </p>
 
       <div className="relative h-[70vh] w-full overflow-hidden rounded-xl border border-slate-800 bg-slate-900">
-        {!loaded && (
+        {available ? (
+          <iframe
+            src="/cdlc-sim/index.html"
+            title="CDLC 3D Simulation"
+            className="h-full w-full border-0"
+            allow="fullscreen"
+          />
+        ) : (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-slate-900">
             <div className="rounded-full bg-slate-800 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-dme-orange">
               Coming soon
@@ -25,13 +51,6 @@ export default function ThreeDWorld() {
             <p className="text-slate-400">Waiting for the 3D build in public/cdlc-sim/…</p>
           </div>
         )}
-        <iframe
-          src="/cdlc-sim/index.html"
-          title="CDLC 3D Simulation"
-          className="h-full w-full border-0"
-          onLoad={() => setLoaded(true)}
-          allow="fullscreen"
-        />
       </div>
     </div>
   );

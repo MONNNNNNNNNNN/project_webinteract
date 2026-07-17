@@ -1,7 +1,27 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "node:path";
+import fs from "node:fs";
 import { pathToFileURL } from "node:url";
+
+// public/cdlc-sim/ is empty until the 3D build is dropped in (see
+// docs/3d-integration-handoff.md). Without this, Vite's SPA history
+// fallback serves index.html for the missing /cdlc-sim/index.html request,
+// so the ThreeDWorld page's iframe recursively loads the whole site.
+function cdlcSimNotFoundMiddleware() {
+  return {
+    name: "cdlc-sim-not-found",
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (!req.url.startsWith("/cdlc-sim/")) return next();
+        const filePath = path.join(process.cwd(), "public", req.url.split("?")[0]);
+        if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) return next();
+        res.statusCode = 404;
+        res.end("Not found");
+      });
+    },
+  };
+}
 
 // Dev-only middleware that runs api/*.js (Vercel serverless function
 // convention) under `vite dev`, so the same handler files work unchanged
@@ -63,5 +83,5 @@ function vercelApiDevMiddleware() {
 }
 
 export default defineConfig({
-  plugins: [react(), vercelApiDevMiddleware()],
+  plugins: [react(), vercelApiDevMiddleware(), cdlcSimNotFoundMiddleware()],
 });

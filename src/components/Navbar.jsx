@@ -25,7 +25,7 @@ export default function Navbar() {
           onClick={() => setOpen(false)}
           className="flex items-center gap-2 text-lg font-bold text-white"
         >
-          <DmeLogo className="h-8 w-8 text-dme-orange" />
+          <DmeLogo className="h-8 w-8" />
           DME <span className="text-dme-orange">Explorer</span>
         </NavLink>
 
