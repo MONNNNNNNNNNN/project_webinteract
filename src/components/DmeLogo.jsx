@@ -1,0 +1,20 @@
+export default function DmeLogo({ className = "h-8 w-8" }) {
+  return (
+    <svg viewBox="0 0 64 64" fill="none" className={className} aria-hidden="true">
+      <path
+        d="M32 6l4.5 2.6 5-1.3 3 4.3 5.2.7 1 5.1 4.6 2.5-1.4 5 2.6 4.5-3.6 3.7.6 5.2-4.9 2-2 4.8-5.2-.4-3.4 3.9-4.9-1.8-4.9 1.8-3.4-3.9-5.2.4-2-4.8-4.9-2 .6-5.2-3.6-3.7 2.6-4.5-1.4-5 4.6-2.5 1-5.1 5.2-.7 3-4.3 5 1.3z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+      <circle cx="32" cy="32" r="7" fill="currentColor" />
+      <g stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+        <path d="M32 25v-6M32 39v6M25 32h-6M39 32h6" />
+      </g>
+      <circle cx="19" cy="32" r="2.4" fill="currentColor" />
+      <circle cx="45" cy="32" r="2.4" fill="currentColor" />
+      <circle cx="32" cy="19" r="2.4" fill="currentColor" />
+      <circle cx="32" cy="45" r="2.4" fill="currentColor" />
+    </svg>
+  );
+}

@@ -8,6 +8,13 @@ const categoryColors = {
   Software: "bg-emerald-500/20 text-emerald-300 border-emerald-500/40",
 };
 
+const categoryIcons = {
+  AI: "🧠",
+  "Digital Media": "🎬",
+  Interactive: "🕹️",
+  Software: "💻",
+};
+
 function CourseCard({ course }) {
   return (
     <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-3">
@@ -93,6 +100,7 @@ export default function CurriculumRoadmap() {
                     : "border-slate-700 text-slate-400 hover:border-slate-500"
                 }`}
               >
+                <span className="mr-1.5">{categoryIcons[cat]}</span>
                 {cat}
               </button>
             ))}

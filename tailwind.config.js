@@ -10,6 +10,9 @@ export default {
           orange: "#f97316",
         },
       },
+      fontFamily: {
+        sans: ["\"Plus Jakarta Sans\"", "system-ui", "sans-serif"],
+      },
     },
   },
   plugins: [],
