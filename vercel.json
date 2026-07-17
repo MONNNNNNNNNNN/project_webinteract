@@ -4,7 +4,6 @@
   "framework": "vite",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/cdlc-sim/(.*)", "destination": "/cdlc-sim/$1" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/((?!cdlc-sim/).*)", "destination": "/index.html" }
   ]
 }
