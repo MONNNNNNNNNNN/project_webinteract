@@ -45,8 +45,18 @@ function CourseCard({ course }) {
   );
 }
 
+const YEAR_SUMMARIES = STUDY_PLAN.map((yearBlock) => {
+  const accumulated = Math.max(
+    0,
+    ...yearBlock.semesters.map((s) => s.totalAccumulated || 0)
+  );
+  const courseCount = yearBlock.semesters.reduce((n, s) => n + s.courses.length, 0);
+  const types = [...new Set(yearBlock.semesters.flatMap((s) => s.courses.map((c) => c.type)))];
+  return { year: yearBlock.year, accumulated, courseCount, types };
+});
+
 export default function CurriculumRoadmap() {
-  const [view, setView] = useState("plan"); // "plan" | "electives"
+  const [view, setView] = useState("overview"); // "overview" | "plan" | "electives"
   const [activeCategory, setActiveCategory] = useState("AI");
 
   return (
@@ -61,6 +71,15 @@ export default function CurriculumRoadmap() {
         </p>
 
         <div className="mb-8 flex gap-2">
+          <motion.button
+            whileTap={{ scale: 0.96 }}
+            onClick={() => setView("overview")}
+            className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+              view === "overview" ? "bg-dme-orange text-white" : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+            }`}
+          >
+            Overview
+          </motion.button>
           <motion.button
             whileTap={{ scale: 0.96 }}
             onClick={() => setView("plan")}
@@ -81,6 +100,32 @@ export default function CurriculumRoadmap() {
           </motion.button>
         </div>
       </FadeIn>
+
+      {view === "overview" && (
+        <FadeIn className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {YEAR_SUMMARIES.map((y, i) => (
+            <FadeIn key={y.year} delay={0.05 * i}>
+              <motion.button
+                whileTap={{ scale: 0.97 }}
+                onClick={() => setView("plan")}
+                className="block h-full w-full rounded-xl border border-slate-800 bg-slate-900/30 p-5 text-left transition duration-200 hover:-translate-y-0.5 hover:border-dme-orange hover:bg-slate-900"
+              >
+                <h2 className="mb-3 text-xl font-bold text-dme-orange">Year {y.year}</h2>
+                <p className="mb-1 text-3xl font-bold text-white">{y.accumulated}</p>
+                <p className="mb-4 text-xs text-slate-500">credits by end of year</p>
+                <p className="mb-3 text-xs text-slate-400">{y.courseCount} courses</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {y.types.map((t) => (
+                    <span key={t} className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${typeColors[t]}`}>
+                      {t}
+                    </span>
+                  ))}
+                </div>
+              </motion.button>
+            </FadeIn>
+          ))}
+        </FadeIn>
+      )}
 
       {view === "plan" && (
         <>

@@ -20,11 +20,7 @@ export default function Home() {
       <section className="relative overflow-hidden">
         <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_50%_-10%,rgba(249,115,22,0.18),transparent_60%)]" />
         <FadeIn className="mx-auto max-w-6xl px-4 py-20 text-center">
-          <div className="mb-4 inline-block rounded-full border border-slate-700 bg-slate-900/60 px-4 py-1 text-xs font-semibold uppercase tracking-widest text-slate-400">
-            DME Explorer
-          </div>
-
-          <h1 className="mb-4 bg-gradient-to-r from-[#f97316] to-[#8a2c2c] bg-clip-text text-4xl font-extrabold tracking-tight text-transparent sm:text-6xl">
+          <h1 className="mb-4 bg-gradient-to-r from-[#f97316] to-[#8a2c2c] bg-clip-text pb-2 text-4xl font-extrabold leading-[1.15] tracking-tight text-transparent sm:text-6xl">
             Digital Media Engineering
           </h1>
           <p className="mx-auto mb-8 max-w-2xl text-lg text-slate-300">
