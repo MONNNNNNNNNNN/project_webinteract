@@ -28,14 +28,14 @@ export default function ThreeDWorld() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-12">
-      <h1 className="mb-2 text-3xl font-bold text-white">3D World — CDLC Simulation</h1>
-      <p className="mb-6 text-slate-400">
+      <h1 className="mb-2 text-3xl font-bold text-slate-900 dark:text-white">3D World — CDLC Simulation</h1>
+      <p className="mb-6 text-slate-600 dark:text-slate-400">
         Walk through the CDLC facility in 3D. Build provided separately and dropped
-        into <code className="rounded bg-slate-800 px-1">public/cdlc-sim/</code> per{" "}
-        <code className="rounded bg-slate-800 px-1">docs/3d-integration-handoff.md</code>.
+        into <code className="rounded bg-slate-100 px-1 dark:bg-slate-800">public/cdlc-sim/</code> per{" "}
+        <code className="rounded bg-slate-100 px-1 dark:bg-slate-800">docs/3d-integration-handoff.md</code>.
       </p>
 
-      <div className="relative h-[70vh] w-full overflow-hidden rounded-xl border border-slate-800 bg-slate-900">
+      <div className="relative h-[60vh] w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900 sm:h-[70vh]">
         {available ? (
           <iframe
             src="/cdlc-sim/index.html"
@@ -44,11 +44,11 @@ export default function ThreeDWorld() {
             allow="fullscreen"
           />
         ) : (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-slate-900">
-            <div className="rounded-full bg-slate-800 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-dme-orange">
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-slate-50 dark:bg-slate-900">
+            <div className="rounded-full bg-slate-100 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-dme-orange dark:bg-slate-800">
               Coming soon
             </div>
-            <p className="text-slate-400">Waiting for the 3D build in public/cdlc-sim/…</p>
+            <p className="text-slate-600 dark:text-slate-400">Waiting for the 3D build in public/cdlc-sim/…</p>
           </div>
         )}
       </div>

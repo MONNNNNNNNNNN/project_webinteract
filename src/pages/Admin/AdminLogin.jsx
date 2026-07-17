@@ -36,11 +36,11 @@ export default function AdminLogin() {
 
   return (
     <div className="mx-auto max-w-sm px-4 py-24">
-      <h1 className="mb-2 text-2xl font-bold text-white">Admin Login</h1>
-      <p className="mb-6 text-sm text-slate-400">
+      <h1 className="mb-2 text-2xl font-bold text-slate-900 dark:text-white">Admin Login</h1>
+      <p className="mb-6 text-sm text-slate-600 dark:text-slate-400">
         Simulated auth — demo credential:{" "}
-        <code className="rounded bg-slate-800 px-1">admin@dme.kku.ac.th</code> /{" "}
-        <code className="rounded bg-slate-800 px-1">demo1234</code>. Set SUPABASE_URL +
+        <code className="rounded bg-slate-100 px-1 dark:bg-slate-800">admin@dme.kku.ac.th</code> /{" "}
+        <code className="rounded bg-slate-100 px-1 dark:bg-slate-800">demo1234</code>. Set SUPABASE_URL +
         SUPABASE_ANON_KEY to switch to real Supabase Auth.
       </p>
 
@@ -51,7 +51,7 @@ export default function AdminLogin() {
           onChange={(e) => setEmail(e.target.value)}
           placeholder="Email"
           required
-          className="rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none"
+          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-500"
         />
         <input
           type="password"
@@ -59,9 +59,9 @@ export default function AdminLogin() {
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Password"
           required
-          className="rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none"
+          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-500"
         />
-        {error && <p className="text-sm text-red-400">{error}</p>}
+        {error && <p className="text-sm text-red-500 dark:text-red-400">{error}</p>}
         <button
           type="submit"
           disabled={loading}

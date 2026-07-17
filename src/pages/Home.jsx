@@ -9,7 +9,7 @@ const quickLinks = [
   { to: "/curriculum", title: "Curriculum Roadmap", desc: "See the full 4-year study plan and elective tracks.", icon: Map },
   { to: "/tuition", title: "Tuition & Fees", desc: "Calculate costs by student type and payment period.", icon: Wallet },
   { to: "/careers", title: "Career Explorer", desc: "Browse job openings in DME-related fields.", icon: Briefcase },
-  { to: "/projects", title: "Student Projects", desc: "See what DME students have built.", icon: Palette },
+  { to: "/projects", title: "Student Projects & Competition", desc: "See what DME students have built and won.", icon: Palette },
   { to: "/3d-world", title: "3D World", desc: "Walk through the CDLC facility in 3D.", icon: Box },
   { to: "/about", title: "About DME", desc: "What the program is and who it's for.", icon: Sparkles },
 ];
@@ -19,11 +19,11 @@ export default function Home() {
     <div>
       <section className="relative overflow-hidden">
         <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_50%_-10%,rgba(249,115,22,0.18),transparent_60%)]" />
-        <FadeIn className="mx-auto max-w-6xl px-4 py-20 text-center">
-          <h1 className="mb-4 bg-gradient-to-r from-[#f97316] to-[#8a2c2c] bg-clip-text pb-2 text-4xl font-extrabold leading-[1.15] tracking-tight text-transparent sm:text-6xl">
+        <FadeIn className="mx-auto max-w-6xl px-4 py-16 text-center sm:py-20">
+          <h1 className="mb-4 bg-gradient-to-r from-[#f97316] to-[#8a2c2c] bg-clip-text pb-2 text-3xl font-extrabold leading-[1.15] tracking-tight text-transparent sm:text-5xl md:text-6xl">
             Digital Media Engineering
           </h1>
-          <p className="mx-auto mb-8 max-w-2xl text-lg text-slate-300">
+          <p className="mx-auto mb-8 max-w-2xl text-base text-slate-600 dark:text-slate-300 sm:text-lg">
             An interactive guide to the Digital Media Engineering program at Khon Kaen
             University — curriculum, tuition, careers, and student work, all in one
             place, built for prospective and first-year students.
@@ -39,7 +39,7 @@ export default function Home() {
             <MotionLink
               whileTap={{ scale: 0.96 }}
               to="/tuition"
-              className="rounded-lg border border-slate-700 px-6 py-3 font-semibold text-slate-200 transition hover:scale-[1.03] hover:bg-slate-800"
+              className="rounded-lg border border-slate-300 px-6 py-3 font-semibold text-slate-700 transition hover:scale-[1.03] hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
             >
               Check Tuition & Fees
             </MotionLink>
@@ -47,18 +47,18 @@ export default function Home() {
         </FadeIn>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 pb-20">
+      <section className="mx-auto max-w-6xl px-4 pb-16 sm:pb-20">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {quickLinks.map((link, i) => (
             <FadeIn key={link.to} delay={0.05 * i}>
               <MotionLink
                 whileTap={{ scale: 0.97 }}
                 to={link.to}
-                className="block h-full rounded-xl border border-slate-800 bg-slate-900/50 p-5 transition duration-200 hover:-translate-y-0.5 hover:scale-[1.02] hover:border-dme-orange hover:bg-slate-900 hover:shadow-lg hover:shadow-dme-orange/10"
+                className="block h-full rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:scale-[1.02] hover:border-dme-orange hover:shadow-lg hover:shadow-dme-orange/10 dark:border-slate-800 dark:bg-slate-900/50 dark:shadow-none dark:hover:bg-slate-900"
               >
                 <link.icon className="mb-2 h-6 w-6 text-dme-orange" />
-                <h2 className="mb-1 font-semibold text-white">{link.title}</h2>
-                <p className="text-sm text-slate-400">{link.desc}</p>
+                <h2 className="mb-1 font-semibold text-slate-900 dark:text-white">{link.title}</h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400">{link.desc}</p>
               </MotionLink>
             </FadeIn>
           ))}

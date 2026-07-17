@@ -38,8 +38,8 @@ export default function CareerExplorer() {
     <div className="relative mx-auto max-w-4xl overflow-hidden px-4 py-12">
       <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_50%_-10%,rgba(249,115,22,0.12),transparent_60%)]" />
       <FadeIn>
-        <h1 className="mb-2 text-3xl font-bold text-white">Career Explorer</h1>
-        <p className="mb-6 text-slate-400">
+        <h1 className="mb-2 text-3xl font-bold text-slate-900 dark:text-white">Career Explorer</h1>
+        <p className="mb-6 text-slate-600 dark:text-slate-400">
           Live, currently-open job listings for DME graduates, filterable by interest area.
           {simulated && " Showing simulated data — set JSEARCH_API_KEY for live listings."}
         </p>
@@ -49,7 +49,9 @@ export default function CareerExplorer() {
             whileTap={{ scale: 0.95 }}
             onClick={() => setInterest("")}
             className={`rounded-full border px-3 py-1 text-xs transition ${
-              interest === "" ? "border-dme-orange bg-dme-orange/10 text-white" : "border-slate-700 text-slate-400"
+              interest === ""
+                ? "border-dme-orange bg-dme-orange/10 text-dme-orange"
+                : "border-slate-300 text-slate-500 dark:border-slate-700 dark:text-slate-400"
             }`}
           >
             All
@@ -60,7 +62,9 @@ export default function CareerExplorer() {
               whileTap={{ scale: 0.95 }}
               onClick={() => setInterest(f)}
               className={`rounded-full border px-3 py-1 text-xs transition ${
-                interest === f ? "border-dme-orange bg-dme-orange/10 text-white" : "border-slate-700 text-slate-400"
+                interest === f
+                  ? "border-dme-orange bg-dme-orange/10 text-dme-orange"
+                  : "border-slate-300 text-slate-500 dark:border-slate-700 dark:text-slate-400"
               }`}
             >
               {f}
@@ -82,11 +86,11 @@ export default function CareerExplorer() {
               href={job.url}
               target="_blank"
               rel="noreferrer"
-              className="block rounded-xl border border-slate-800 bg-slate-900/40 p-4 transition duration-200 hover:-translate-y-0.5 hover:scale-[1.02] hover:border-dme-orange hover:shadow-lg hover:shadow-dme-orange/10"
+              className="block rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:scale-[1.02] hover:border-dme-orange hover:shadow-lg hover:shadow-dme-orange/10 dark:border-slate-800 dark:bg-slate-900/40 dark:shadow-none"
             >
               <p className="text-xs uppercase tracking-wide text-dme-orange">{job.interest}</p>
-              <p className="mt-1 font-semibold text-white">{job.title}</p>
-              <p className="text-sm text-slate-400">{job.company}</p>
+              <p className="mt-1 font-semibold text-slate-900 dark:text-white">{job.title}</p>
+              <p className="text-sm text-slate-600 dark:text-slate-400">{job.company}</p>
               <p className="mt-2 text-xs text-slate-500">{job.location}</p>
             </a>
           </FadeIn>

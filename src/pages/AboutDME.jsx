@@ -29,8 +29,8 @@ export default function AboutDME() {
           <DmeFullLogo iconClassName="h-16 w-16" textClassName="text-xl" />
         </div>
 
-        <h1 className="mb-2 text-3xl font-bold text-white">About DME</h1>
-        <p className="mb-10 text-slate-400">
+        <h1 className="mb-2 text-3xl font-bold text-slate-900 dark:text-white">About DME</h1>
+        <p className="mb-10 text-slate-600 dark:text-slate-400">
           Digital Media Engineering at Khon Kaen University's Faculty of Engineering.
         </p>
       </FadeIn>
@@ -38,9 +38,9 @@ export default function AboutDME() {
       <div className="space-y-8">
         {facts.map((f, i) => (
           <FadeIn key={f.title} delay={0.06 * i}>
-            <div className="rounded-lg border-l-2 border-dme-orange py-1 pl-4 transition hover:bg-slate-900/40">
-              <h2 className="mb-1 text-lg font-semibold text-white">{f.title}</h2>
-              <p className="text-slate-300">{f.body}</p>
+            <div className="rounded-lg border-l-2 border-dme-orange py-1 pl-4 transition hover:bg-slate-100 dark:hover:bg-slate-900/40">
+              <h2 className="mb-1 text-lg font-semibold text-slate-900 dark:text-white">{f.title}</h2>
+              <p className="text-slate-600 dark:text-slate-300">{f.body}</p>
             </div>
           </FadeIn>
         ))}
