@@ -1,3 +1,5 @@
+import DmeFullLogo from "../components/DmeFullLogo.jsx";
+
 const facts = [
   {
     title: "What is DME?",
@@ -20,6 +22,10 @@ const facts = [
 export default function AboutDME() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-12">
+      <div className="mb-8 inline-block rounded-2xl bg-white px-6 py-4 shadow-xl">
+        <DmeFullLogo iconClassName="h-16 w-16" textClassName="text-xl" />
+      </div>
+
       <h1 className="mb-2 text-3xl font-bold text-white">About DME</h1>
       <p className="mb-10 text-slate-400">
         Digital Media Engineering at Khon Kaen University's Faculty of Engineering.

@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import DmeFullLogo from "../components/DmeFullLogo.jsx";
 
 const quickLinks = [
   { to: "/curriculum", title: "Curriculum Roadmap", desc: "See the full 4-year study plan and elective tracks.", icon: "🗺️" },
@@ -21,6 +22,10 @@ export default function Home() {
           transition={{ duration: 0.5, ease: "easeOut" }}
           className="mx-auto max-w-6xl px-4 py-20 text-center"
         >
+          <div className="mb-8 inline-block rounded-2xl bg-white px-6 py-4 shadow-xl">
+            <DmeFullLogo iconClassName="h-14 w-14" textClassName="text-lg" />
+          </div>
+
           <h1 className="mb-4 text-4xl font-extrabold tracking-tight text-white sm:text-5xl">
             DME <span className="text-dme-orange">Explorer</span>
           </h1>
