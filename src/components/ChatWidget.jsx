@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { MessageCircle, X, Send } from "lucide-react";
 
 export default function ChatWidget() {
   const [open, setOpen] = useState(false);
@@ -39,61 +41,78 @@ export default function ChatWidget() {
 
   return (
     <div className="fixed bottom-5 right-5 z-50">
-      {open && (
-        <div className="mb-3 flex w-80 flex-col rounded-xl border border-slate-800 bg-slate-900 shadow-xl">
-          <div className="flex items-center justify-between border-b border-slate-800 p-4">
-            <p className="font-semibold text-white">DME Assistant</p>
-            <button onClick={() => setOpen(false)} className="text-slate-400 hover:text-white">
-              ✕
-            </button>
-          </div>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: 16, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 16, scale: 0.96 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="mb-3 flex w-80 flex-col rounded-xl border border-slate-800 bg-slate-900 shadow-xl"
+          >
+            <div className="flex items-center justify-between border-b border-slate-800 p-4">
+              <p className="font-semibold text-white">DME Assistant</p>
+              <button onClick={() => setOpen(false)} className="text-slate-400 hover:text-white">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
 
-          <div className="flex max-h-80 flex-col gap-2 overflow-y-auto p-3">
-            {messages.map((m, i) => (
-              <div
-                key={i}
-                className={`rounded-lg px-3 py-2 text-sm ${
-                  m.role === "user"
-                    ? "self-end bg-dme-orange text-white"
-                    : "self-start bg-slate-800 text-slate-200"
-                }`}
+            <div className="flex max-h-80 flex-col gap-2 overflow-y-auto p-3">
+              <AnimatePresence initial={false}>
+                {messages.map((m, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                    className={`rounded-lg px-3 py-2 text-sm ${
+                      m.role === "user"
+                        ? "self-end bg-dme-orange text-white"
+                        : "self-start bg-slate-800 text-slate-200"
+                    }`}
+                  >
+                    {m.text}
+                    {m.role === "assistant" && m.simulated && (
+                      <span className="ml-2 rounded bg-slate-700 px-1.5 py-0.5 text-[10px] uppercase text-slate-400">
+                        simulated
+                      </span>
+                    )}
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+              {loading && <div className="self-start text-xs text-slate-500">Thinking…</div>}
+            </div>
+
+            <div className="flex gap-2 border-t border-slate-800 p-3">
+              <input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+                placeholder="Ask about DME…"
+                className="flex-1 rounded-lg bg-slate-800 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none"
+              />
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={sendMessage}
+                disabled={loading}
+                className="flex items-center justify-center rounded-lg bg-dme-orange px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
               >
-                {m.text}
-                {m.role === "assistant" && m.simulated && (
-                  <span className="ml-2 rounded bg-slate-700 px-1.5 py-0.5 text-[10px] uppercase text-slate-400">
-                    simulated
-                  </span>
-                )}
-              </div>
-            ))}
-            {loading && <div className="self-start text-xs text-slate-500">Thinking…</div>}
-          </div>
-
-          <div className="flex gap-2 border-t border-slate-800 p-3">
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-              placeholder="Ask about DME…"
-              className="flex-1 rounded-lg bg-slate-800 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none"
-            />
-            <button
-              onClick={sendMessage}
-              disabled={loading}
-              className="rounded-lg bg-dme-orange px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
-            >
-              Send
-            </button>
-          </div>
-        </div>
-      )}
-      <button
+                <Send className="h-4 w-4" />
+              </motion.button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <motion.button
+        whileTap={{ scale: 0.92 }}
+        animate={{ rotate: open ? 90 : 0 }}
+        transition={{ duration: 0.2 }}
         onClick={() => setOpen((v) => !v)}
-        className="flex h-14 w-14 items-center justify-center rounded-full bg-dme-orange text-2xl text-white shadow-lg transition hover:brightness-110"
+        className="flex h-14 w-14 items-center justify-center rounded-full bg-dme-orange text-white shadow-lg transition hover:brightness-110"
         aria-label="Open chat"
       >
-        💬
-      </button>
+        {open ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
+      </motion.button>
     </div>
   );
 }

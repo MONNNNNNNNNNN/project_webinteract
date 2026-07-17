@@ -1,5 +1,7 @@
 import { useState, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { STUDENT_TYPES, FEE_BREAKDOWN, grandTotal, formatBaht } from "../lib/tuitionData.js";
+import FadeIn from "../components/FadeIn.jsx";
 
 export default function TuitionFees() {
   const [statusId, setStatusId] = useState("thai");
@@ -14,32 +16,35 @@ export default function TuitionFees() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-12">
-      <h1 className="mb-2 text-3xl font-bold text-white">Tuition & Fees</h1>
-      <p className="mb-8 text-slate-400">
-        Select your student type to see a transparent breakdown of academic and
-        living costs. Figures are demo data from a prior Studio 4 project — confirm
-        with the faculty before treating these as official.
-      </p>
+      <FadeIn>
+        <h1 className="mb-2 text-3xl font-bold text-white">Tuition & Fees</h1>
+        <p className="mb-8 text-slate-400">
+          Select your student type to see a transparent breakdown of academic and
+          living costs. Figures are demo data from a prior Studio 4 project — confirm
+          with the faculty before treating these as official.
+        </p>
 
-      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
-        {STUDENT_TYPES.map((s) => (
-          <button
-            key={s.id}
-            onClick={() => setStatusId(s.id)}
-            className={`rounded-xl border p-4 text-left transition ${
-              statusId === s.id
-                ? "border-dme-orange bg-dme-orange/10"
-                : "border-slate-800 bg-slate-900/40 hover:border-slate-600"
-            }`}
-          >
-            <p className="text-xs uppercase tracking-wide text-slate-400">Semester Fee</p>
-            <p className="text-sm font-medium text-slate-300">{s.label}</p>
-            <p className="text-2xl font-bold text-white">{formatBaht(s.semesterFee)}</p>
-          </button>
-        ))}
-      </div>
+        <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {STUDENT_TYPES.map((s) => (
+            <motion.button
+              key={s.id}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => setStatusId(s.id)}
+              className={`rounded-xl border p-4 text-left transition ${
+                statusId === s.id
+                  ? "border-dme-orange bg-dme-orange/10"
+                  : "border-slate-800 bg-slate-900/40 hover:border-slate-600"
+              }`}
+            >
+              <p className="text-xs uppercase tracking-wide text-slate-400">Semester Fee</p>
+              <p className="text-sm font-medium text-slate-300">{s.label}</p>
+              <p className="text-2xl font-bold text-white">{formatBaht(s.semesterFee)}</p>
+            </motion.button>
+          ))}
+        </div>
+      </FadeIn>
 
-      <div className="rounded-xl border border-slate-800 bg-slate-900/40">
+      <FadeIn delay={0.1} className="rounded-xl border border-slate-800 bg-slate-900/40">
         <div className="flex items-center justify-between border-b border-slate-800 p-4">
           <div>
             <h2 className="font-semibold text-white">Fee Breakdown</h2>
@@ -47,15 +52,16 @@ export default function TuitionFees() {
           </div>
           <div className="flex gap-1 rounded-lg bg-slate-800 p-1">
             {["Per Semester", "Full 4 Years"].map((p) => (
-              <button
+              <motion.button
                 key={p}
+                whileTap={{ scale: 0.95 }}
                 onClick={() => setPeriod(p)}
                 className={`rounded px-3 py-1.5 text-sm font-medium transition ${
                   period === p ? "bg-dme-orange text-white" : "text-slate-300 hover:text-white"
                 }`}
               >
                 {p}
-              </button>
+              </motion.button>
             ))}
           </div>
         </div>
@@ -115,9 +121,20 @@ export default function TuitionFees() {
                 : "Includes 8 semesters of academic fees + ~40 months of estimated living costs."}
             </p>
           </div>
-          <p className="text-3xl font-bold text-white">{formatBaht(total)}</p>
+          <AnimatePresence mode="wait">
+            <motion.p
+              key={total}
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 6 }}
+              transition={{ duration: 0.15 }}
+              className="text-3xl font-bold text-white"
+            >
+              {formatBaht(total)}
+            </motion.p>
+          </AnimatePresence>
         </div>
-      </div>
+      </FadeIn>
     </div>
   );
 }
