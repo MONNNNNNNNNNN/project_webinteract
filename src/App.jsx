@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import Navbar from "./components/Navbar.jsx";
@@ -13,9 +14,18 @@ import AboutDME from "./pages/AboutDME.jsx";
 import Contact from "./pages/Contact.jsx";
 import AdminLogin from "./pages/Admin/AdminLogin.jsx";
 import AdminDashboard from "./pages/Admin/AdminDashboard.jsx";
+import { prefetchCareers } from "./lib/careersCache.js";
 
 export default function App() {
   const location = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    prefetchCareers("");
+  }, []);
 
   return (
     <div className="flex min-h-screen flex-col bg-white font-sans text-slate-900 dark:bg-dme-navy dark:text-slate-100">

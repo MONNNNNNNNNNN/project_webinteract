@@ -12,7 +12,6 @@ const channels = [
   { label: "International Affairs Division", value: "+66 (0) 4320 2059", icon: Phone, href: "tel:+6643202059" },
   { label: "Email", value: "enforeign@kku.ac.th", icon: Mail, href: "mailto:enforeign@kku.ac.th" },
   { label: "Facebook", value: "facebook.com/EngineeringKKU", icon: Link2, href: "https://facebook.com/EngineeringKKU" },
-  { label: "YouTube", value: "youtube.com/@Engineering-KKU", icon: Link2, href: "https://youtube.com/@Engineering-KKU" },
 ];
 
 export default function Contact() {

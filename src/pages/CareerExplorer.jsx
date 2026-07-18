@@ -2,22 +2,29 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
 import FadeIn from "../components/FadeIn.jsx";
+import { prefetchCareers, getCachedCareers } from "../lib/careersCache.js";
 
 const interestFilters = ["3D & Animation", "Game Dev", "AI & Data", "Software"];
 
 export default function CareerExplorer() {
   const [interest, setInterest] = useState("");
-  const [jobs, setJobs] = useState([]);
-  const [simulated, setSimulated] = useState(true);
-  const [loading, setLoading] = useState(true);
+  const cached = getCachedCareers("");
+  const [jobs, setJobs] = useState(cached?.jobs || []);
+  const [simulated, setSimulated] = useState(cached ? Boolean(cached.simulated) : true);
+  const [loading, setLoading] = useState(!cached);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
+    const cachedNow = getCachedCareers(interest);
+    if (cachedNow) {
+      setJobs(cachedNow.jobs || []);
+      setSimulated(Boolean(cachedNow.simulated));
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
 
-    const params = interest ? `?interest=${encodeURIComponent(interest)}` : "";
-    fetch(`/api/careers${params}`)
-      .then((res) => res.json())
+    prefetchCareers(interest)
       .then((data) => {
         if (cancelled) return;
         setJobs(data.jobs || []);

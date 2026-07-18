@@ -1,9 +1,5 @@
-import { Link } from "react-router-dom";
-import { motion } from "framer-motion";
 import FadeIn from "../components/FadeIn.jsx";
 import NewsCarousel from "../components/NewsCarousel.jsx";
-
-const MotionLink = motion(Link);
 
 const newsItems = [
   {
@@ -49,27 +45,11 @@ export default function Home() {
           <h1 className="mb-4 bg-gradient-to-r from-[#f97316] to-[#8a2c2c] bg-clip-text pb-2 text-3xl font-extrabold leading-[1.15] tracking-tight text-transparent sm:text-5xl md:text-6xl">
             Digital Media Engineering
           </h1>
-          <p className="mx-auto mb-8 max-w-2xl text-base text-slate-600 dark:text-slate-300 sm:text-lg">
+          <p className="mx-auto max-w-2xl text-base text-slate-600 dark:text-slate-300 sm:text-lg">
             An interactive guide to the Digital Media Engineering program at Khon Kaen
             University — curriculum, tuition, careers, and student work, all in one
             place, built for prospective and first-year students.
           </p>
-          <div className="flex flex-wrap justify-center gap-3">
-            <MotionLink
-              whileTap={{ scale: 0.96 }}
-              to="/curriculum"
-              className="rounded-lg bg-dme-orange px-6 py-3 font-semibold text-white shadow-lg shadow-dme-orange/20 transition hover:scale-[1.03] hover:brightness-110"
-            >
-              Explore the Curriculum
-            </MotionLink>
-            <MotionLink
-              whileTap={{ scale: 0.96 }}
-              to="/tuition"
-              className="rounded-lg border border-slate-300 px-6 py-3 font-semibold text-slate-700 transition hover:scale-[1.03] hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-            >
-              Check Tuition & Fees
-            </MotionLink>
-          </div>
         </FadeIn>
       </section>
 
