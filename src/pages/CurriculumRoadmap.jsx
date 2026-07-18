@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Brain, Clapperboard, Gamepad2, Code2, X } from "lucide-react";
+import { Brain, Clapperboard, Gamepad2, Code2, X, ChevronDown } from "lucide-react";
 import { STUDY_PLAN, ELECTIVE_COURSES, CATEGORIES, PROGRAM_TOTAL_CREDITS } from "../lib/curriculumData.js";
 import FadeIn from "../components/FadeIn.jsx";
 
@@ -122,6 +122,7 @@ export default function CurriculumRoadmap() {
   const [courseView, setCourseView] = useState("plan"); // "plan" | "electives"
   const [activeCategory, setActiveCategory] = useState("AI");
   const [selectedCourse, setSelectedCourse] = useState(null);
+  const [openYear, setOpenYear] = useState(1);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-12">
@@ -200,7 +201,11 @@ export default function CurriculumRoadmap() {
                 <FadeIn key={y.year} delay={0.05 * i}>
                   <motion.button
                     whileTap={{ scale: 0.97 }}
-                    onClick={() => setSection("course")}
+                    onClick={() => {
+                      setOpenYear(y.year);
+                      setCourseView("plan");
+                      setSection("course");
+                    }}
                     className="block h-full w-full rounded-xl border border-slate-200 bg-white p-5 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-dme-orange dark:border-slate-800 dark:bg-slate-900/30 dark:shadow-none dark:hover:bg-slate-900"
                   >
                     <h3 className="mb-2 text-lg font-bold text-dme-orange">Year {y.year}</h3>
@@ -242,26 +247,55 @@ export default function CurriculumRoadmap() {
           </div>
 
           {courseView === "plan" && (
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              {STUDY_PLAN.map((yearBlock, yi) => (
-                <FadeIn
-                  key={yearBlock.year}
-                  delay={0.05 * yi}
-                  className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/30 dark:shadow-none"
-                >
-                  <h2 className="mb-4 text-xl font-bold text-dme-orange">Year {yearBlock.year}</h2>
-                  {yearBlock.semesters.map((sem) => (
-                    <div key={sem.name} className="mb-5 last:mb-0">
-                      <h3 className="mb-2 font-semibold text-slate-900 dark:text-white">{sem.name}</h3>
-                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                        {sem.courses.map((c, i) => (
-                          <CourseCard key={`${c.code}-${i}`} course={c} onSelect={setSelectedCourse} />
-                        ))}
+            <div className="space-y-3">
+              {STUDY_PLAN.map((yearBlock, yi) => {
+                const isOpen = openYear === yearBlock.year;
+                const courseCount = yearBlock.semesters.reduce((n, s) => n + s.courses.length, 0);
+                return (
+                  <FadeIn
+                    key={yearBlock.year}
+                    delay={0.05 * yi}
+                    className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/30 dark:shadow-none"
+                  >
+                    <button
+                      onClick={() => setOpenYear((cur) => (cur === yearBlock.year ? null : yearBlock.year))}
+                      className="flex w-full items-center justify-between p-5 text-left transition hover:bg-slate-50 dark:hover:bg-slate-900/60"
+                    >
+                      <div className="flex items-center gap-3">
+                        <h2 className="text-xl font-bold text-dme-orange">Year {yearBlock.year}</h2>
+                        <span className="text-xs text-slate-500 dark:text-slate-400">{courseCount} courses</span>
                       </div>
-                    </div>
-                  ))}
-                </FadeIn>
-              ))}
+                      <motion.span animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
+                        <ChevronDown className="h-5 w-5 text-slate-400" />
+                      </motion.span>
+                    </button>
+                    <AnimatePresence initial={false}>
+                      {isOpen && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.25, ease: "easeInOut" }}
+                          className="overflow-hidden"
+                        >
+                          <div className="px-5 pb-5">
+                            {yearBlock.semesters.map((sem) => (
+                              <div key={sem.name} className="mb-5 last:mb-0">
+                                <h3 className="mb-2 font-semibold text-slate-900 dark:text-white">{sem.name}</h3>
+                                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                  {sem.courses.map((c, i) => (
+                                    <CourseCard key={`${c.code}-${i}`} course={c} onSelect={setSelectedCourse} />
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </FadeIn>
+                );
+              })}
             </div>
           )}
 

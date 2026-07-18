@@ -22,6 +22,22 @@ const newsItems = [
     description:
       "March 7–9, 2024: 36 third-year DME students visited three digital media companies — The Monk Studios, Igdrasil Group, and Zurreal Studio — to build real-world industry experience alongside classroom learning.",
   },
+  {
+    tag: "Faculty Events",
+    title: "Engineering Freshmen '63 — July 2026 Activity Calendar",
+    image: "/news/july-events-2026.jpg",
+    real: true,
+    description:
+      "This month's Faculty of Engineering student council calendar: Explore Your Path (Jul 4), EN Choir (Jul 6–9), Quest for Athlete orientation series (Jul 11–18), Wai Kru Day (Jul 23), and Sophomore's Day (Jul 25).",
+  },
+  {
+    tag: "KKU News",
+    title: "Thailand University Esports Championship 2026, hosted at KKU",
+    image: "/news/esports-2026.jpg",
+    real: true,
+    description:
+      "Khon Kaen University hosted the 1st Thailand University Esports Championship, 6–10 July 2026 — 3 games, 400+ players from universities nationwide. Not a DME-organized event, but held on campus.",
+  },
 ];
 
 export default function Home() {
