@@ -111,11 +111,14 @@ function CourseModal({ course, onClose }) {
   );
 }
 
-const YEAR_SUMMARIES = STUDY_PLAN.map((yearBlock) => {
-  const accumulated = Math.max(0, ...yearBlock.semesters.map((s) => s.totalAccumulated || 0));
+// Per-year (non-cumulative) credits: each year's own load, not a running total.
+const YEAR_SUMMARIES = STUDY_PLAN.reduce((acc, yearBlock) => {
+  const cumulative = Math.max(0, ...yearBlock.semesters.map((s) => s.totalAccumulated || 0));
+  const prevCumulative = acc.length ? acc[acc.length - 1].cumulative : 0;
   const courseCount = yearBlock.semesters.reduce((n, s) => n + s.courses.length, 0);
-  return { year: yearBlock.year, accumulated, courseCount };
-});
+  acc.push({ year: yearBlock.year, yearCredits: cumulative - prevCumulative, cumulative, courseCount });
+  return acc;
+}, []);
 
 export default function CurriculumRoadmap() {
   const [section, setSection] = useState("curriculum"); // "curriculum" | "course"
@@ -209,8 +212,8 @@ export default function CurriculumRoadmap() {
                     className="block h-full w-full rounded-xl border border-slate-200 bg-white p-5 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-dme-orange dark:border-slate-800 dark:bg-slate-900/30 dark:shadow-none dark:hover:bg-slate-900"
                   >
                     <h3 className="mb-2 text-lg font-bold text-dme-orange">Year {y.year}</h3>
-                    <p className="mb-1 text-2xl font-bold text-slate-900 dark:text-white">{y.accumulated}</p>
-                    <p className="text-xs text-slate-500">credits by end of year · {y.courseCount} courses</p>
+                    <p className="mb-1 text-2xl font-bold text-slate-900 dark:text-white">{y.yearCredits}</p>
+                    <p className="text-xs text-slate-500">credits this year · {y.courseCount} courses</p>
                   </motion.button>
                 </FadeIn>
               ))}
@@ -250,7 +253,7 @@ export default function CurriculumRoadmap() {
             <div className="space-y-3">
               {STUDY_PLAN.map((yearBlock, yi) => {
                 const isOpen = openYear === yearBlock.year;
-                const courseCount = yearBlock.semesters.reduce((n, s) => n + s.courses.length, 0);
+                const summary = YEAR_SUMMARIES.find((y) => y.year === yearBlock.year);
                 return (
                   <FadeIn
                     key={yearBlock.year}
@@ -263,7 +266,9 @@ export default function CurriculumRoadmap() {
                     >
                       <div className="flex items-center gap-3">
                         <h2 className="text-xl font-bold text-dme-orange">Year {yearBlock.year}</h2>
-                        <span className="text-xs text-slate-500 dark:text-slate-400">{courseCount} courses</span>
+                        <span className="text-xs text-slate-500 dark:text-slate-400">
+                          {summary.yearCredits} credits · {summary.courseCount} courses
+                        </span>
                       </div>
                       <motion.span animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
                         <ChevronDown className="h-5 w-5 text-slate-400" />
