@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { STUDENT_TYPES, FEE_BREAKDOWN, grandTotal, formatBaht } from "../lib/tuitionData.js";
+import { STUDENT_TYPES, FEE_BREAKDOWN, MEKONG_COUNTRIES, grandTotal, formatBaht } from "../lib/tuitionData.js";
 import FadeIn from "../components/FadeIn.jsx";
 
 export default function TuitionFees() {
@@ -20,11 +20,10 @@ export default function TuitionFees() {
         <h1 className="mb-2 text-3xl font-bold text-slate-900 dark:text-white">Tuition & Fees</h1>
         <p className="mb-8 text-slate-600 dark:text-slate-400">
           Select your student type to see a transparent breakdown of academic and
-          living costs. Figures are demo data from a prior Studio 4 project — confirm
-          with the faculty before treating these as official.
+          living costs, sourced from the official program page.
         </p>
 
-        <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
           {STUDENT_TYPES.map((s) => (
             <motion.button
               key={s.id}
@@ -42,6 +41,12 @@ export default function TuitionFees() {
             </motion.button>
           ))}
         </div>
+
+        {statusId === "mekong" && (
+          <p className="mb-6 text-xs text-slate-500 dark:text-slate-400">
+            Mekong Region rate applies to students from: {MEKONG_COUNTRIES.join(", ")}.
+          </p>
+        )}
       </FadeIn>
 
       <FadeIn

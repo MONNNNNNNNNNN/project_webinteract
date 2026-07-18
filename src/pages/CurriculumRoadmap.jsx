@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
-import { Brain, Clapperboard, Gamepad2, Code2 } from "lucide-react";
-import { STUDY_PLAN, ELECTIVE_COURSES, CATEGORIES, COURSE_TYPES, PROGRAM_TOTAL_CREDITS } from "../lib/curriculumData.js";
+import { AnimatePresence, motion } from "framer-motion";
+import { Brain, Clapperboard, Gamepad2, Code2, X } from "lucide-react";
+import { STUDY_PLAN, ELECTIVE_COURSES, CATEGORIES, PROGRAM_TOTAL_CREDITS } from "../lib/curriculumData.js";
 import FadeIn from "../components/FadeIn.jsx";
 
 const categoryColors = {
@@ -28,9 +28,22 @@ const typeColors = {
   "Free Elective": "bg-cyan-500/10 text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-300",
 };
 
-function CourseCard({ course }) {
+// Credit breakdown from the official program page (en.kku.ac.th/web/en/beng-dme).
+const CREDIT_BREAKDOWN = [
+  { label: "General Education", credits: 30, note: "Language 12 · Humanities/Social Sciences 6 · Math/Sciences 12" },
+  { label: "Basic Engineering", credits: 15, note: "Fundamental courses" },
+  { label: "Core Engineering", credits: 36, note: "Compulsory major courses" },
+  { label: "Elective Engineering", credits: 27, note: "Min. — AI / Digital Media / Interactive / Software tracks" },
+  { label: "Field Experience", credits: 6, note: "Practical training / co-op" },
+  { label: "Free Elective", credits: 6, note: "Min. — any faculty" },
+];
+
+function CourseCard({ course, onSelect }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm transition hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/50 dark:shadow-none dark:hover:border-slate-600">
+    <button
+      onClick={() => onSelect(course)}
+      className="w-full rounded-lg border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-dme-orange hover:shadow-md dark:border-slate-800 dark:bg-slate-900/50 dark:shadow-none dark:hover:border-slate-600"
+    >
       <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
         <span>{course.code}</span>
         <span>{course.credits} cr</span>
@@ -41,168 +54,250 @@ function CourseCard({ course }) {
           {course.type}
         </span>
       )}
-    </div>
+    </button>
+  );
+}
+
+function CourseModal({ course, onClose }) {
+  return (
+    <AnimatePresence>
+      {course && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={onClose}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-2xl bg-white p-6 dark:bg-slate-900"
+          >
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs text-slate-500 dark:text-slate-400">{course.code}</p>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">{course.name}</h3>
+              </div>
+              <button
+                onClick={onClose}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white"
+                aria-label="Close"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="mb-4 flex flex-wrap gap-2">
+              <span className="rounded bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                {course.credits} credits
+              </span>
+              {course.type && (
+                <span className={`rounded px-2 py-1 text-xs font-semibold uppercase ${typeColors[course.type]}`}>
+                  {course.type}
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-slate-600 dark:text-slate-300">
+              Detailed course description not yet published here — refer to the official KKU course
+              syllabus for full content, prerequisites, and learning outcomes.
+            </p>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 
 const YEAR_SUMMARIES = STUDY_PLAN.map((yearBlock) => {
-  const accumulated = Math.max(
-    0,
-    ...yearBlock.semesters.map((s) => s.totalAccumulated || 0)
-  );
+  const accumulated = Math.max(0, ...yearBlock.semesters.map((s) => s.totalAccumulated || 0));
   const courseCount = yearBlock.semesters.reduce((n, s) => n + s.courses.length, 0);
-  const types = [...new Set(yearBlock.semesters.flatMap((s) => s.courses.map((c) => c.type)))];
-  return { year: yearBlock.year, accumulated, courseCount, types };
+  return { year: yearBlock.year, accumulated, courseCount };
 });
 
 export default function CurriculumRoadmap() {
-  const [view, setView] = useState("overview"); // "overview" | "plan" | "electives"
+  const [section, setSection] = useState("curriculum"); // "curriculum" | "course"
+  const [courseView, setCourseView] = useState("plan"); // "plan" | "electives"
   const [activeCategory, setActiveCategory] = useState("AI");
+  const [selectedCourse, setSelectedCourse] = useState(null);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-12">
       <FadeIn>
         <h1 className="mb-2 text-3xl font-bold text-slate-900 dark:text-white">Curriculum Roadmap</h1>
         <p className="mb-6 text-slate-600 dark:text-slate-400">
-          {PROGRAM_TOTAL_CREDITS} credits over 4 years (Cooperative Education track). Data
-          from the 2026 International Program Course Map — see{" "}
-          <code className="rounded bg-slate-100 px-1 dark:bg-slate-800">docs/reference/curriculum-data.md</code>{" "}
-          for the elective-track source and caveats.
+          {PROGRAM_TOTAL_CREDITS} credits over 4 years (Cooperative Education track).
         </p>
 
         <div className="mb-8 flex flex-wrap gap-2">
           <motion.button
             whileTap={{ scale: 0.96 }}
-            onClick={() => setView("overview")}
+            onClick={() => setSection("curriculum")}
             className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
-              view === "overview"
+              section === "curriculum"
                 ? "bg-dme-orange text-white"
                 : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
             }`}
           >
-            Overview
+            Curriculum
           </motion.button>
           <motion.button
             whileTap={{ scale: 0.96 }}
-            onClick={() => setView("plan")}
+            onClick={() => setSection("course")}
             className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
-              view === "plan"
+              section === "course"
                 ? "bg-dme-orange text-white"
                 : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
             }`}
           >
-            4-Year Study Plan
-          </motion.button>
-          <motion.button
-            whileTap={{ scale: 0.96 }}
-            onClick={() => setView("electives")}
-            className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
-              view === "electives"
-                ? "bg-dme-orange text-white"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-            }`}
-          >
-            Major Elective Tracks
+            Course
           </motion.button>
         </div>
       </FadeIn>
 
-      {view === "overview" && (
-        <FadeIn className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {YEAR_SUMMARIES.map((y, i) => (
-            <FadeIn key={y.year} delay={0.05 * i}>
-              <motion.button
-                whileTap={{ scale: 0.97 }}
-                onClick={() => setView("plan")}
-                className="block h-full w-full rounded-xl border border-slate-200 bg-white p-5 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-dme-orange dark:border-slate-800 dark:bg-slate-900/30 dark:shadow-none dark:hover:bg-slate-900"
-              >
-                <h2 className="mb-3 text-xl font-bold text-dme-orange">Year {y.year}</h2>
-                <p className="mb-1 text-3xl font-bold text-slate-900 dark:text-white">{y.accumulated}</p>
-                <p className="mb-4 text-xs text-slate-500">credits by end of year</p>
-                <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">{y.courseCount} courses</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {y.types.map((t) => (
-                    <span key={t} className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${typeColors[t]}`}>
-                      {t}
-                    </span>
-                  ))}
+      {section === "curriculum" && (
+        <FadeIn className="space-y-8">
+          <div>
+            <h2 className="mb-2 text-lg font-bold text-slate-900 dark:text-white">What you'll study</h2>
+            <p className="mb-3 text-slate-600 dark:text-slate-300">
+              Digital Media Engineering students specialize in developing, implementing, and optimizing
+              technology systems for creating, processing, delivering, and displaying digital content.
+            </p>
+            <p className="mb-3 text-slate-600 dark:text-slate-300">
+              <span className="font-semibold text-slate-900 dark:text-white">Core responsibilities:</span>{" "}
+              designing applications, implementing streaming technologies, developing interactive
+              experiences, and building asset management systems.
+            </p>
+            <p className="text-slate-600 dark:text-slate-300">
+              <span className="font-semibold text-slate-900 dark:text-white">Key competencies:</span>{" "}
+              programming for audio/video, streaming protocols, interactive media development, user
+              experience design, and virtual/augmented reality technologies.
+            </p>
+          </div>
+
+          <div>
+            <h2 className="mb-3 text-lg font-bold text-slate-900 dark:text-white">Credit breakdown</h2>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {CREDIT_BREAKDOWN.map((c) => (
+                <div
+                  key={c.label}
+                  className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/30 dark:shadow-none"
+                >
+                  <p className="text-2xl font-bold text-dme-orange">{c.credits}</p>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-white">{c.label}</p>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{c.note}</p>
                 </div>
-              </motion.button>
-            </FadeIn>
-          ))}
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h2 className="mb-3 text-lg font-bold text-slate-900 dark:text-white">Year by year</h2>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {YEAR_SUMMARIES.map((y, i) => (
+                <FadeIn key={y.year} delay={0.05 * i}>
+                  <motion.button
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => setSection("course")}
+                    className="block h-full w-full rounded-xl border border-slate-200 bg-white p-5 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-dme-orange dark:border-slate-800 dark:bg-slate-900/30 dark:shadow-none dark:hover:bg-slate-900"
+                  >
+                    <h3 className="mb-2 text-lg font-bold text-dme-orange">Year {y.year}</h3>
+                    <p className="mb-1 text-2xl font-bold text-slate-900 dark:text-white">{y.accumulated}</p>
+                    <p className="text-xs text-slate-500">credits by end of year · {y.courseCount} courses</p>
+                  </motion.button>
+                </FadeIn>
+              ))}
+            </div>
+          </div>
         </FadeIn>
       )}
 
-      {view === "plan" && (
-        <>
-          <FadeIn delay={0.05} className="mb-6 flex flex-wrap gap-2">
-            {COURSE_TYPES.map((t) => (
-              <span key={t} className={`rounded px-2 py-1 text-[11px] font-semibold uppercase ${typeColors[t]}`}>
-                {t}
-              </span>
-            ))}
-          </FadeIn>
-
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            {STUDY_PLAN.map((yearBlock, yi) => (
-              <FadeIn
-                key={yearBlock.year}
-                delay={0.05 * yi}
-                className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/30 dark:shadow-none"
-              >
-                <h2 className="mb-4 text-xl font-bold text-dme-orange">Year {yearBlock.year}</h2>
-                {yearBlock.semesters.map((sem) => (
-                  <div key={sem.name} className="mb-5 last:mb-0">
-                    <div className="mb-2 flex items-baseline justify-between">
-                      <h3 className="font-semibold text-slate-900 dark:text-white">{sem.name}</h3>
-                      {sem.totalAccumulated && (
-                        <span className="text-xs text-slate-500">
-                          Accumulated: {sem.totalAccumulated} credits
-                        </span>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                      {sem.courses.map((c, i) => (
-                        <CourseCard key={`${c.code}-${i}`} course={c} />
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </FadeIn>
-            ))}
-          </div>
-        </>
-      )}
-
-      {view === "electives" && (
+      {section === "course" && (
         <FadeIn>
           <div className="mb-6 flex flex-wrap gap-2">
-            {CATEGORIES.map((cat) => {
-              const Icon = categoryIcons[cat];
-              return (
-                <motion.button
-                  key={cat}
-                  whileTap={{ scale: 0.96 }}
-                  onClick={() => setActiveCategory(cat)}
-                  className={`flex items-center gap-1.5 rounded-full border px-4 py-1.5 text-sm font-medium transition ${
-                    activeCategory === cat
-                      ? categoryColors[cat]
-                      : "border-slate-300 text-slate-500 hover:border-slate-400 dark:border-slate-700 dark:text-slate-400 dark:hover:border-slate-500"
-                  }`}
+            <motion.button
+              whileTap={{ scale: 0.96 }}
+              onClick={() => setCourseView("plan")}
+              className={`rounded-full border px-4 py-1.5 text-sm font-medium transition ${
+                courseView === "plan"
+                  ? "border-dme-orange bg-dme-orange/10 text-dme-orange"
+                  : "border-slate-300 text-slate-500 hover:border-slate-400 dark:border-slate-700 dark:text-slate-400 dark:hover:border-slate-500"
+              }`}
+            >
+              4-Year Study Plan
+            </motion.button>
+            <motion.button
+              whileTap={{ scale: 0.96 }}
+              onClick={() => setCourseView("electives")}
+              className={`rounded-full border px-4 py-1.5 text-sm font-medium transition ${
+                courseView === "electives"
+                  ? "border-dme-orange bg-dme-orange/10 text-dme-orange"
+                  : "border-slate-300 text-slate-500 hover:border-slate-400 dark:border-slate-700 dark:text-slate-400 dark:hover:border-slate-500"
+              }`}
+            >
+              Major Elective Tracks
+            </motion.button>
+          </div>
+
+          {courseView === "plan" && (
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              {STUDY_PLAN.map((yearBlock, yi) => (
+                <FadeIn
+                  key={yearBlock.year}
+                  delay={0.05 * yi}
+                  className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/30 dark:shadow-none"
                 >
-                  <Icon className="h-4 w-4" />
-                  {cat}
-                </motion.button>
-              );
-            })}
-          </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {ELECTIVE_COURSES[activeCategory].map((course, i) => (
-              <CourseCard key={`${course.code}-${i}`} course={course} />
-            ))}
-          </div>
+                  <h2 className="mb-4 text-xl font-bold text-dme-orange">Year {yearBlock.year}</h2>
+                  {yearBlock.semesters.map((sem) => (
+                    <div key={sem.name} className="mb-5 last:mb-0">
+                      <h3 className="mb-2 font-semibold text-slate-900 dark:text-white">{sem.name}</h3>
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        {sem.courses.map((c, i) => (
+                          <CourseCard key={`${c.code}-${i}`} course={c} onSelect={setSelectedCourse} />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </FadeIn>
+              ))}
+            </div>
+          )}
+
+          {courseView === "electives" && (
+            <>
+              <div className="mb-6 flex flex-wrap gap-2">
+                {CATEGORIES.map((cat) => {
+                  const Icon = categoryIcons[cat];
+                  return (
+                    <motion.button
+                      key={cat}
+                      whileTap={{ scale: 0.96 }}
+                      onClick={() => setActiveCategory(cat)}
+                      className={`flex items-center gap-1.5 rounded-full border px-4 py-1.5 text-sm font-medium transition ${
+                        activeCategory === cat
+                          ? categoryColors[cat]
+                          : "border-slate-300 text-slate-500 hover:border-slate-400 dark:border-slate-700 dark:text-slate-400 dark:hover:border-slate-500"
+                      }`}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {cat}
+                    </motion.button>
+                  );
+                })}
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {ELECTIVE_COURSES[activeCategory].map((course, i) => (
+                  <CourseCard key={`${course.code}-${i}`} course={course} onSelect={setSelectedCourse} />
+                ))}
+              </div>
+            </>
+          )}
         </FadeIn>
       )}
+
+      <CourseModal course={selectedCourse} onClose={() => setSelectedCourse(null)} />
     </div>
   );
 }

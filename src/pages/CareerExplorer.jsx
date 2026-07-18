@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { Loader2 } from "lucide-react";
 import FadeIn from "../components/FadeIn.jsx";
 
 const interestFilters = ["3D & Animation", "Game Dev", "AI & Data", "Software"];
@@ -73,7 +74,12 @@ export default function CareerExplorer() {
         </div>
       </FadeIn>
 
-      {loading && <p className="text-sm text-slate-500">Loading jobs…</p>}
+      {loading && (
+        <div className="flex flex-col items-center justify-center gap-3 py-16 text-slate-500 dark:text-slate-400">
+          <Loader2 className="h-8 w-8 animate-spin text-dme-orange" />
+          <p className="text-sm">Fetching live job listings…</p>
+        </div>
+      )}
 
       {!loading && jobs.length === 0 && (
         <p className="text-sm text-slate-500">No listings found for this filter.</p>

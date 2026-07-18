@@ -22,7 +22,14 @@ export const FAQ_FACTS = [
     keywords: ["tuition", "fee", "cost", "how much", "price"],
     question: "How much does DME cost?",
     answer:
-      "Tuition depends on student type. Thai students: ~45,000 THB/semester. Mekong Region: ~50,000 THB/semester. International: ~65,000 THB/semester. See the Tuition & Fees page for the full breakdown — these are demo figures, confirm with the faculty before treating as official.",
+      "Tuition depends on student type. Thai students: ~45,000 THB/semester. Mekong Region (Cambodia, China, Laos, Myanmar, Vietnam): 50,000 THB/semester, no enrollment fee. International (other regions): 65,000 THB/semester + 10,000 THB one-time enrollment fee. See the Tuition & Fees page for the full breakdown, sourced from the official program page.",
+  },
+  {
+    id: "contact",
+    keywords: ["contact", "email", "phone", "register", "registration", "apply", "admission"],
+    question: "How do I contact DME / register?",
+    answer:
+      "For admissions and registration, contact the International Affairs Division at +66 (0) 4320 2059 or enforeign@kku.ac.th. General Faculty of Engineering line: +66 (0) 4300 9700 ext. 50215 or 45641. See the Contact page for all channels.",
   },
   {
     id: "career",

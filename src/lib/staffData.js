@@ -1,0 +1,29 @@
+// Real staff directory data from https://gear.kku.ac.th/index.php/staff?lang=en
+// (Dept. of Computer Engineering, which also runs the DME program at KKU Faculty
+// of Engineering). Only currently-listed lecturers included — a few entries on the
+// source page are HTML-commented-out (no longer active) and were excluded.
+// Email addresses are obfuscated on the source site (anti-spam JS decoding) and are
+// intentionally omitted here rather than guessed — use the profile link or the
+// department directory to make contact.
+
+export const LECTURERS = [
+  { name: "Bhichate Chiewthanakul", title: "Assoc. Prof.", education: "B.Eng. King Mongkut's Institute of Technology Ladkrabang, M.Eng. Asian Institute of Technology", specialty: "Number theory, Elliptic curves, Modular forms", photo: "/staff/bhichate.png", profile: "https://gear.kku.ac.th/~bhichate" },
+  { name: "Chatchai Khunboa", title: "Assoc. Prof.", education: "B.Eng. (Hons.) Khon Kaen University, M.S. University of Pittsburgh, Ph.D. George Mason University", specialty: "Ad hoc Networks, Sensor Networks, Telecommunications, Computer Networks", photo: "/staff/chatchai.jpg", profile: null },
+  { name: "Chavis Srichan", title: "Asst. Prof.", education: "B.Eng. Khon Kaen University, M.Sc. Hamburg University of Technology, D.Eng. Asian Institute of Technology", specialty: "Nanoelectronic", photo: "/staff/chavis.jpg", profile: null },
+  { name: "Daranee Hormdee", title: "Asst. Prof.", education: "B.Eng. Khon Kaen University, M.Sc./Ph.D. University of Manchester", specialty: "Embedded Systems, Microprocessors, Micro-controller", photo: "/staff/daranee.png", profile: "https://gear.kku.ac.th/~ying/" },
+  { name: "Jiradej Ponsawat", title: "Asst. Prof.", education: "B.Eng. Khon Kaen University, M.Eng./D.Eng. Chulalongkorn University", specialty: "Evolutionary Processing, Bioinformatics", photo: "/staff/jiradej.png", profile: null },
+  { name: "Kanda Runapongsa Saikaew", title: "Assoc. Prof.", education: "B.S. (Hons.) Carnegie Mellon University, M.S./Ph.D. University of Michigan", specialty: "XML, DBMS, Web Services, Web 2.0", photo: "/staff/kanda.jpg", profile: "https://gear.kku.ac.th/~krunapon" },
+  { name: "Kitt Tientanopajai", title: "Lecturer", education: "B.Eng. Khon Kaen University, M.Eng./D.Eng. Asian Institute of Technology", specialty: "Computer Networks, Information Security, Free/Open Source Software", photo: "/staff/kitt.png", profile: "https://gear.kku.ac.th/~kitt" },
+  { name: "Kornchawal Chaipah", title: "Asst. Prof.", education: "B.S./M.S./Ph.D. Carnegie Mellon University", specialty: "Computer Technology in Education, Computer Networks", photo: "/staff/kornchawal.jpg", profile: null },
+  { name: "Manasawee Kaenampornpan", title: "Asst. Prof.", education: "B.Eng. University of Warwick, M.Sc. University of Bristol, Ph.D. University of Bath", specialty: "UX Design, HCI, Mobile & Ubiquitous Computing, Social Media & Digital Marketing, Software Engineering", photo: "/staff/manasawee.jpg", profile: null, room: "EN4202A" },
+  { name: "Nawapak Eua-Anant", title: "Lecturer", education: "B.Eng. (Hons.) Khon Kaen University, M.E./Ph.D. Iowa State University", specialty: "Digital Signal/Image Processing, Pattern Recognition, Artificial Neural Networks", photo: "/staff/nawapak.jpg", profile: null },
+  { name: "Panawit Hanpinitsak", title: "Lecturer", education: "B.Eng. (1st Hons.) Sirindhorn International Institute of Technology, M.Eng./D.Eng. Tokyo Institute of Technology", specialty: "Computer Vision, Localization, Wireless Communication", photo: "/staff/panawit.jpg", profile: null, room: "EN4512A" },
+  { name: "Panupong Wanjantuk", title: "Asst. Prof.", education: "B.Eng. Khon Kaen University, M.Phil. University of Manchester", specialty: "High-performance Computing, Data Mining", photo: "/staff/panupong.png", profile: null },
+  { name: "Pattarawit Polpinit", title: "Asst. Prof.", education: "B.S. Cornell University, M.Sc. Asian Institute of Technology, Ph.D. University of Liverpool", specialty: "Game Theory, Theory of Computation, Analysis of Algorithms", photo: "/staff/pattarawit.jpg", profile: "https://gear.kku.ac.th/~polpinit/" },
+  { name: "Sarun Paisarnsrisomsuk", title: "Lecturer", education: "B.S. Worcester Polytechnic Institute, M.S. University of Virginia, Ph.D. Worcester Polytechnic Institute", specialty: "Neural Networks", photo: "/staff/sarun.jpg", profile: null },
+  { name: "Tatpong Katanyukul", title: "Assoc. Prof.", education: "B.Eng. King Mongkut's Institute of Technology Ladkrabang, M.Eng. Asian Institute of Technology, Ph.D. Colorado State University", specialty: "Machine Learning, Pattern Recognition", photo: "/staff/tatpong.jpg", profile: "https://gear.kku.ac.th/index.php/staff/tatpong" },
+  { name: "Wanida Kanarkard", title: "Prof.", education: "B.Eng. (Hons.) Khon Kaen University, Imperial College London, Ph.D. University of Hertfordshire, Postdoc National Institute of Informatics (Japan)", specialty: "Computational Intelligence, A.I., High-performance Computing", photo: "/staff/wanida.png", profile: null },
+  { name: "Wasu Chaopanon", title: "Lecturer", education: "B.Eng. Khon Kaen University, M.S. New York University, Ph.D. University of Pittsburgh", specialty: "Web, HCI, Information Retrieval", photo: "/staff/wasu.jpg", profile: "https://gear.kku.ac.th/~wasu" },
+  { name: "Watis Leelapatra", title: "Lecturer", education: "B.Eng. Khon Kaen University, M.S. Case Western Reserve University, D.Eng. Asian Institute of Technology", specialty: "Embedded Systems, Computer Architecture", photo: "/staff/watis.jpg", profile: "https://gear.kku.ac.th/~watis" },
+  { name: "Witcha Feungchan", title: "Asst. Prof.", education: "B.Eng. Khon Kaen University, M.Sc. Chulalongkorn University, Ph.D. University of Regina", specialty: "Games Design, Ubiquitous Computing, Virtual Reality", photo: "/staff/witcha.jpg", profile: "https://gear.kku.ac.th/~witcha" },
+];

@@ -1,3 +1,4 @@
+import { Phone, Mail } from "lucide-react";
 import DmeLogo from "./DmeLogo.jsx";
 
 export default function Footer() {
@@ -7,8 +8,16 @@ export default function Footer() {
         <DmeLogo className="h-5 w-5" />
         <span className="font-semibold">DME Explorer</span>
       </div>
-      <p>Digital Media Engineering, Khon Kaen University</p>
-      <p className="mt-1">Built for EN 842300 Interactive Web Programming</p>
+      <p>Digital Media Engineering, Faculty of Engineering, Khon Kaen University</p>
+      <div className="mt-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs">
+        <span className="font-medium text-slate-600 dark:text-slate-300">International Affairs Division</span>
+        <a href="tel:+6643202059" className="flex items-center gap-1 hover:text-dme-orange">
+          <Phone className="h-3 w-3" /> +66 (0) 4320 2059
+        </a>
+        <a href="mailto:enforeign@kku.ac.th" className="flex items-center gap-1 hover:text-dme-orange">
+          <Mail className="h-3 w-3" /> enforeign@kku.ac.th
+        </a>
+      </div>
     </footer>
   );
 }
