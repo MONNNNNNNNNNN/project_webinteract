@@ -2,9 +2,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
 import FadeIn from "../components/FadeIn.jsx";
-import { prefetchCareers, getCachedCareers } from "../lib/careersCache.js";
-
-const interestFilters = ["3D & Animation", "Game Dev", "AI & Data", "Software"];
+import { prefetchCareers, getCachedCareers, CAREER_INTERESTS } from "../lib/careersCache.js";
 
 export default function CareerExplorer() {
   const [interest, setInterest] = useState("");
@@ -64,7 +62,7 @@ export default function CareerExplorer() {
           >
             All
           </motion.button>
-          {interestFilters.map((f) => (
+          {CAREER_INTERESTS.map((f) => (
             <motion.button
               key={f}
               whileTap={{ scale: 0.95 }}
@@ -92,23 +90,25 @@ export default function CareerExplorer() {
         <p className="text-sm text-slate-500">No listings found for this filter.</p>
       )}
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {jobs.map((job, i) => (
-          <FadeIn key={job.id} delay={0.04 * i}>
-            <a
-              href={job.url}
-              target="_blank"
-              rel="noreferrer"
-              className="block rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:scale-[1.02] hover:border-dme-orange hover:shadow-lg hover:shadow-dme-orange/10 dark:border-slate-800 dark:bg-slate-900/40 dark:shadow-none"
-            >
-              <p className="text-xs uppercase tracking-wide text-dme-orange">{job.interest}</p>
-              <p className="mt-1 font-semibold text-slate-900 dark:text-white">{job.title}</p>
-              <p className="text-sm text-slate-600 dark:text-slate-400">{job.company}</p>
-              <p className="mt-2 text-xs text-slate-500">{job.location}</p>
-            </a>
-          </FadeIn>
-        ))}
-      </div>
+      {!loading && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {jobs.map((job, i) => (
+            <FadeIn key={job.id} delay={0.04 * i}>
+              <a
+                href={job.url}
+                target="_blank"
+                rel="noreferrer"
+                className="block rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:scale-[1.02] hover:border-dme-orange hover:shadow-lg hover:shadow-dme-orange/10 dark:border-slate-800 dark:bg-slate-900/40 dark:shadow-none"
+              >
+                <p className="text-xs uppercase tracking-wide text-dme-orange">{job.interest}</p>
+                <p className="mt-1 font-semibold text-slate-900 dark:text-white">{job.title}</p>
+                <p className="text-sm text-slate-600 dark:text-slate-400">{job.company}</p>
+                <p className="mt-2 text-xs text-slate-500">{job.location}</p>
+              </a>
+            </FadeIn>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

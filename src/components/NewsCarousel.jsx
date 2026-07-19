@@ -1,26 +1,51 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function NewsCarousel({ items, intervalMs = 5000 }) {
   const [index, setIndex] = useState(0);
   const [open, setOpen] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const suppressClick = useRef(false);
 
   useEffect(() => {
-    if (open || items.length < 2) return;
+    if (open || isDragging || items.length < 2) return;
     const id = setInterval(() => setIndex((i) => (i + 1) % items.length), intervalMs);
     return () => clearInterval(id);
-  }, [open, items.length, intervalMs]);
+  }, [open, isDragging, items.length, intervalMs]);
 
   const active = items[index];
+  const goNext = () => setIndex((i) => (i + 1) % items.length);
+  const goPrev = () => setIndex((i) => (i - 1 + items.length) % items.length);
+
+  function handleDragEnd(e, info) {
+    const threshold = 60;
+    if (info.offset.x < -threshold) goNext();
+    else if (info.offset.x > threshold) goPrev();
+    setIsDragging(false);
+    suppressClick.current = true;
+    setTimeout(() => {
+      suppressClick.current = false;
+    }, 100);
+  }
 
   return (
     <>
-      <div className="relative mx-auto max-w-4xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/40 dark:shadow-none">
-        <button
-          onClick={() => setOpen(true)}
-          className="block h-64 w-full cursor-zoom-in overflow-hidden sm:h-80"
+      <div className="relative mx-auto max-w-5xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/40 dark:shadow-none">
+        <motion.div
+          role="button"
+          tabIndex={0}
           aria-label={`Expand: ${active.title}`}
+          onKeyDown={(e) => e.key === "Enter" && setOpen(true)}
+          onClick={() => {
+            if (!suppressClick.current) setOpen(true);
+          }}
+          drag="x"
+          dragConstraints={{ left: 0, right: 0 }}
+          dragElastic={0.15}
+          onDragStart={() => setIsDragging(true)}
+          onDragEnd={handleDragEnd}
+          className="h-80 w-full cursor-grab touch-pan-y select-none overflow-hidden active:cursor-grabbing sm:h-[28rem]"
         >
           <AnimatePresence mode="wait">
             <motion.img
@@ -31,10 +56,11 @@ export default function NewsCarousel({ items, intervalMs = 5000 }) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.4 }}
+              draggable={false}
               className="h-full w-full object-cover object-top"
             />
           </AnimatePresence>
-        </button>
+        </motion.div>
 
         <div className="p-4 text-left sm:p-5">
           <div className="mb-1 flex items-center gap-2">
@@ -66,18 +92,18 @@ export default function NewsCarousel({ items, intervalMs = 5000 }) {
         {items.length > 1 && (
           <>
             <button
-              onClick={() => setIndex((i) => (i - 1 + items.length) % items.length)}
+              onClick={goPrev}
               aria-label="Previous"
-              className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/30 p-1.5 text-white transition hover:bg-black/50"
+              className="absolute left-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-lg transition hover:scale-110 hover:bg-dme-orange hover:text-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-6 w-6" />
             </button>
             <button
-              onClick={() => setIndex((i) => (i + 1) % items.length)}
+              onClick={goNext}
               aria-label="Next"
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/30 p-1.5 text-white transition hover:bg-black/50"
+              className="absolute right-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-lg transition hover:scale-110 hover:bg-dme-orange hover:text-white dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
             >
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-6 w-6" />
             </button>
           </>
         )}

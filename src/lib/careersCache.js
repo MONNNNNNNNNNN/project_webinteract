@@ -1,6 +1,9 @@
 // Module-level cache so the jobs fetch can be warmed up as soon as the app
 // mounts (see App.jsx), well before the user actually clicks into
 // Career Explorer — avoids a visible loading spinner on the common path.
+
+export const CAREER_INTERESTS = ["3D & Animation", "Game Dev", "AI & Data", "Software"];
+
 const cache = new Map(); // interest -> { promise, data }
 
 export function prefetchCareers(interest = "") {

@@ -14,7 +14,7 @@ import AboutDME from "./pages/AboutDME.jsx";
 import Contact from "./pages/Contact.jsx";
 import AdminLogin from "./pages/Admin/AdminLogin.jsx";
 import AdminDashboard from "./pages/Admin/AdminDashboard.jsx";
-import { prefetchCareers } from "./lib/careersCache.js";
+import { prefetchCareers, CAREER_INTERESTS } from "./lib/careersCache.js";
 
 export default function App() {
   const location = useLocation();
@@ -24,7 +24,9 @@ export default function App() {
   }, [location.pathname]);
 
   useEffect(() => {
-    prefetchCareers("");
+    ["", ...CAREER_INTERESTS].forEach((interest) => {
+      prefetchCareers(interest);
+    });
   }, []);
 
   return (
