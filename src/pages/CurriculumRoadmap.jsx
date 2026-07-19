@@ -164,7 +164,7 @@ export default function CurriculumRoadmap() {
   const [courseView, setCourseView] = useState("plan"); // "plan" | "electives" | "allCourses"
   const [activeCategory, setActiveCategory] = useState("AI");
   const [selectedCourse, setSelectedCourse] = useState(null);
-  const [openYear, setOpenYear] = useState(1);
+  const [openYear, setOpenYear] = useState(null);
   const [openAllCoursesCategory, setOpenAllCoursesCategory] = useState(null);
 
   function openCourse(course, categoryLabel) {
@@ -279,7 +279,10 @@ export default function CurriculumRoadmap() {
           <div className="mb-6 flex flex-wrap gap-2">
             <motion.button
               whileTap={{ scale: 0.96 }}
-              onClick={() => setCourseView("plan")}
+              onClick={() => {
+                setOpenYear(null);
+                setCourseView("plan");
+              }}
               className={`rounded-full border px-4 py-1.5 text-sm font-medium transition ${
                 courseView === "plan"
                   ? "border-dme-orange bg-dme-orange/10 text-dme-orange"
