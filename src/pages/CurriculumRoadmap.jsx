@@ -28,6 +28,26 @@ const typeColors = {
   "Free Elective": "bg-cyan-500/10 text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-300",
 };
 
+// Short course.type -> full credit-breakdown category name.
+const TYPE_TO_CATEGORY = {
+  "Gen Ed": "General Education",
+  Fundamental: "Basic Engineering",
+  Compulsory: "Core Engineering",
+  Elective: "Elective Engineering",
+  "Practical Training": "Field Experience",
+  "Free Elective": "Free Elective",
+};
+
+// Full category name -> chip color (reuses the same legend as typeColors).
+const categoryChipColors = {
+  "General Education": typeColors["Gen Ed"],
+  "Basic Engineering": typeColors.Fundamental,
+  "Core Engineering": typeColors.Compulsory,
+  "Elective Engineering": typeColors.Elective,
+  "Field Experience": typeColors["Practical Training"],
+  "Free Elective": typeColors["Free Elective"],
+};
+
 // Credit breakdown from the official program page (en.kku.ac.th/web/en/beng-dme).
 const CREDIT_BREAKDOWN = [
   { label: "General Education", credits: 30, note: "Language 12 · Humanities/Social Sciences 6 · Math/Sciences 12" },
@@ -37,6 +57,25 @@ const CREDIT_BREAKDOWN = [
   { label: "Field Experience", credits: 6, note: "Practical training / co-op" },
   { label: "Free Elective", credits: 6, note: "Min. — any faculty" },
 ];
+
+// All courses grouped by full category name. Elective Engineering pulls the
+// real elective course pool (ELECTIVE_COURSES) instead of the STUDY_PLAN
+// placeholder "Elective Course" slot rows, since those don't name real courses.
+const ALL_COURSES_BY_CATEGORY = (() => {
+  const map = Object.fromEntries(CREDIT_BREAKDOWN.map((c) => [c.label, []]));
+  STUDY_PLAN.forEach((yearBlock) => {
+    yearBlock.semesters.forEach((sem) => {
+      sem.courses.forEach((c) => {
+        const cat = TYPE_TO_CATEGORY[c.type];
+        if (cat && cat !== "Elective Engineering") map[cat].push(c);
+      });
+    });
+  });
+  Object.values(ELECTIVE_COURSES).forEach((list) => {
+    list.forEach((c) => map["Elective Engineering"].push(c));
+  });
+  return map;
+})();
 
 function CourseCard({ course, onSelect }) {
   return (
@@ -94,9 +133,9 @@ function CourseModal({ course, onClose }) {
               <span className="rounded bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                 {course.credits} credits
               </span>
-              {course.type && (
-                <span className={`rounded px-2 py-1 text-xs font-semibold uppercase ${typeColors[course.type]}`}>
-                  {course.type}
+              {course.categoryLabel && (
+                <span className={`rounded px-2 py-1 text-xs font-semibold ${categoryChipColors[course.categoryLabel] || ""}`}>
+                  {course.categoryLabel}
                 </span>
               )}
             </div>
@@ -122,10 +161,21 @@ const YEAR_SUMMARIES = STUDY_PLAN.reduce((acc, yearBlock) => {
 
 export default function CurriculumRoadmap() {
   const [section, setSection] = useState("curriculum"); // "curriculum" | "course"
-  const [courseView, setCourseView] = useState("plan"); // "plan" | "electives"
+  const [courseView, setCourseView] = useState("plan"); // "plan" | "electives" | "allCourses"
   const [activeCategory, setActiveCategory] = useState("AI");
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [openYear, setOpenYear] = useState(1);
+  const [openAllCoursesCategory, setOpenAllCoursesCategory] = useState(null);
+
+  function openCourse(course, categoryLabel) {
+    setSelectedCourse({ ...course, categoryLabel: categoryLabel || TYPE_TO_CATEGORY[course.type] || null });
+  }
+
+  function goToAllCoursesCategory(label) {
+    setOpenAllCoursesCategory(label);
+    setCourseView("allCourses");
+    setSection("course");
+  }
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-12">
@@ -185,14 +235,16 @@ export default function CurriculumRoadmap() {
             <h2 className="mb-3 text-lg font-bold text-slate-900 dark:text-white">Credit breakdown</h2>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {CREDIT_BREAKDOWN.map((c) => (
-                <div
+                <motion.button
                   key={c.label}
-                  className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/30 dark:shadow-none"
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => goToAllCoursesCategory(c.label)}
+                  className="rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-dme-orange dark:border-slate-800 dark:bg-slate-900/30 dark:shadow-none dark:hover:bg-slate-900"
                 >
                   <p className="text-2xl font-bold text-dme-orange">{c.credits}</p>
                   <p className="text-sm font-semibold text-slate-900 dark:text-white">{c.label}</p>
                   <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{c.note}</p>
-                </div>
+                </motion.button>
               ))}
             </div>
           </div>
@@ -247,6 +299,20 @@ export default function CurriculumRoadmap() {
             >
               Major Elective Tracks
             </motion.button>
+            <motion.button
+              whileTap={{ scale: 0.96 }}
+              onClick={() => {
+                setOpenAllCoursesCategory(null);
+                setCourseView("allCourses");
+              }}
+              className={`rounded-full border px-4 py-1.5 text-sm font-medium transition ${
+                courseView === "allCourses"
+                  ? "border-dme-orange bg-dme-orange/10 text-dme-orange"
+                  : "border-slate-300 text-slate-500 hover:border-slate-400 dark:border-slate-700 dark:text-slate-400 dark:hover:border-slate-500"
+              }`}
+            >
+              All Courses
+            </motion.button>
           </div>
 
           {courseView === "plan" && (
@@ -289,7 +355,7 @@ export default function CurriculumRoadmap() {
                                 <h3 className="mb-2 font-semibold text-slate-900 dark:text-white">{sem.name}</h3>
                                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                                   {sem.courses.map((c, i) => (
-                                    <CourseCard key={`${c.code}-${i}`} course={c} onSelect={setSelectedCourse} />
+                                    <CourseCard key={`${c.code}-${i}`} course={c} onSelect={(cc) => openCourse(cc)} />
                                   ))}
                                 </div>
                               </div>
@@ -328,10 +394,66 @@ export default function CurriculumRoadmap() {
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {ELECTIVE_COURSES[activeCategory].map((course, i) => (
-                  <CourseCard key={`${course.code}-${i}`} course={course} onSelect={setSelectedCourse} />
+                  <CourseCard
+                    key={`${course.code}-${i}`}
+                    course={course}
+                    onSelect={(cc) => openCourse(cc, "Elective Engineering")}
+                  />
                 ))}
               </div>
             </>
+          )}
+
+          {courseView === "allCourses" && (
+            <div className="space-y-3">
+              {CREDIT_BREAKDOWN.map((cat, i) => {
+                const isOpen = openAllCoursesCategory === cat.label;
+                const courses = ALL_COURSES_BY_CATEGORY[cat.label];
+                return (
+                  <FadeIn
+                    key={cat.label}
+                    delay={0.05 * i}
+                    className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/30 dark:shadow-none"
+                  >
+                    <button
+                      onClick={() => setOpenAllCoursesCategory((cur) => (cur === cat.label ? null : cat.label))}
+                      className="flex w-full items-center justify-between p-5 text-left transition hover:bg-slate-50 dark:hover:bg-slate-900/60"
+                    >
+                      <div className="flex items-center gap-3">
+                        <h2 className="text-xl font-bold text-dme-orange">{cat.label}</h2>
+                        <span className="text-xs text-slate-500 dark:text-slate-400">
+                          {cat.credits} credits · {courses.length} courses
+                        </span>
+                      </div>
+                      <motion.span animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
+                        <ChevronDown className="h-5 w-5 text-slate-400" />
+                      </motion.span>
+                    </button>
+                    <AnimatePresence initial={false}>
+                      {isOpen && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.25, ease: "easeInOut" }}
+                          className="overflow-hidden"
+                        >
+                          <div className="grid grid-cols-1 gap-2 px-5 pb-5 sm:grid-cols-2 lg:grid-cols-3">
+                            {courses.map((c, ci) => (
+                              <CourseCard
+                                key={`${c.code}-${ci}`}
+                                course={c}
+                                onSelect={(cc) => openCourse(cc, cat.label)}
+                              />
+                            ))}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </FadeIn>
+                );
+              })}
+            </div>
           )}
         </FadeIn>
       )}
