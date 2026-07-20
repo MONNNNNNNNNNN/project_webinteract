@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import Navbar from "./components/Navbar.jsx";
@@ -9,12 +9,14 @@ import CurriculumRoadmap from "./pages/CurriculumRoadmap.jsx";
 import TuitionFees from "./pages/TuitionFees.jsx";
 import CareerExplorer from "./pages/CareerExplorer.jsx";
 import StudentProjects from "./pages/StudentProjects.jsx";
-import ThreeDWorld from "./pages/ThreeDWorld.jsx";
 import AboutDME from "./pages/AboutDME.jsx";
 import Contact from "./pages/Contact.jsx";
 import AdminLogin from "./pages/Admin/AdminLogin.jsx";
 import AdminDashboard from "./pages/Admin/AdminDashboard.jsx";
 import { prefetchCareers, CAREER_INTERESTS } from "./lib/careersCache.js";
+
+// Lazy: three.js/@react-three pulls in ~900kb, only /3d-world needs it.
+const ThreeDWorld = lazy(() => import("./pages/ThreeDWorld.jsx"));
 
 export default function App() {
   const location = useLocation();
@@ -47,7 +49,20 @@ export default function App() {
               <Route path="/tuition" element={<TuitionFees />} />
               <Route path="/careers" element={<CareerExplorer />} />
               <Route path="/projects" element={<StudentProjects />} />
-              <Route path="/3d-world" element={<ThreeDWorld />} />
+              <Route
+                path="/3d-world"
+                element={
+                  <Suspense
+                    fallback={
+                      <div className="mx-auto max-w-6xl px-4 py-24 text-center text-slate-500 dark:text-slate-400">
+                        Loading 3D viewer…
+                      </div>
+                    }
+                  >
+                    <ThreeDWorld />
+                  </Suspense>
+                }
+              />
               <Route path="/about" element={<AboutDME />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/admin" element={<AdminLogin />} />

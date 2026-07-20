@@ -29,13 +29,15 @@ is the original proposal **minus** the removal below **plus** the addition below
   4-category system — **AI / Digital Media / Interactive / Software** — because it
   matches the real KKU DME major-elective tracks (Studio 4 report pages ~15-19,
   25-27). Data lives in `docs/reference/curriculum-data.md`.
-- **3D CDLC simulation:** built separately by a teammate (Thanasoonton) as a
-  self-contained static web build (Unity WebGL or Three.js, TBD by them), dropped
-  into `public/cdlc-sim/` later and embedded via `<iframe>` in
-  `src/pages/ThreeDWorld.jsx`. The exact handoff contract is in
-  `docs/3d-integration-handoff.md`. **Do not build any 3D viewer/loader logic** —
-  the route and iframe scaffold already exist; `public/cdlc-sim/` is intentionally
-  empty until the teammate's build lands.
+- **3D CDLC simulation:** originally planned as a separate static build from a
+  teammate (Thanasoonton), embedded via `<iframe>` — that plan changed. It's now
+  built directly in-app: `src/components/ThreeDViewer.jsx` (React Three Fiber),
+  loading a `.glb` model from `public/3d/` with first-person walk controls
+  (desktop: pointer-lock + WASD; touch: orbit/drag) rendered on the
+  `src/pages/ThreeDWorld.jsx` route. `docs/3d-integration-handoff.md` describes
+  the old iframe contract and is no longer accurate — the `public/cdlc-sim/`
+  iframe path isn't used. The three.js/`@react-three/*` deps are React-18-pinned
+  (`@react-three/fiber@^8`, `@react-three/drei@^9`) since fiber v9 needs React 19.
 
 See `docs/demo-script.md` for how this all gets presented — it's a useful map of
 which features are considered "high risk" for a live demo (JSearch API, the 3D
@@ -68,7 +70,8 @@ supabase/migrations/        SQL migrations: programs, courses, student_status, f
 docs/reference/             Extracted source data — read these instead of the PDFs
   curriculum-data.md         Full 4-year study plan + 4 elective-track course lists
   tuition-data.md            Full fee breakdown per student type / period
-public/cdlc-sim/            Empty — reserved for teammate's 3D build (see above)
+public/cdlc-sim/            Unused — old iframe handoff plan, superseded (see above)
+public/3d/                  .glb model assets for ThreeDViewer
 ```
 
 ## Data sourcing
@@ -85,14 +88,18 @@ curriculum before publishing.
 ## Page status
 
 **Real content, fully self-contained (no env vars needed):** Home, CurriculumRoadmap,
-TuitionFees (working calculator, local state only), AboutDME, Contact,
-StudentProjects (placeholder gallery entries).
+TuitionFees, AboutDME, Contact — all now sourced from real KKU data (see git log),
+not the original placeholder/demo copy this section used to describe.
+StudentProjects has a mix of real (marked "Real") and placeholder entries.
+`ThreeDWorld.jsx` is a real, working first-person walkthrough (see 3D section above),
+no env vars needed.
 
-**Stubbed — "Coming soon", route exists, no logic yet:**
-- `CareerExplorer.jsx` — needs `JSEARCH_API_KEY`
-- `ChatWidget.jsx` (floating component, not a route) — needs `ANTHROPIC_API_KEY`
-- `ThreeDWorld.jsx` — needs teammate's build in `public/cdlc-sim/`; iframe pattern
-  is already wired per the handoff doc
+**Live but falls back to simulated data without a key:**
+- `CareerExplorer.jsx` — needs `JSEARCH_API_KEY`, else shows simulated listings
+- `ChatWidget.jsx` (floating component, not a route) — needs `ANTHROPIC_API_KEY`,
+  else answers from a small hardcoded FAQ (still DME-scoped, zero cost)
+
+**Stubbed:**
 - `Admin/AdminLogin.jsx`, `Admin/AdminDashboard.jsx` — needs Supabase Auth
 
 ## Environment variables
