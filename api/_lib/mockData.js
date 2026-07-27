@@ -50,6 +50,9 @@ export const FAQ_FACTS = [
 export const FALLBACK_ANSWER =
   "I'm not sure about that one yet — try asking about the DME program, electives, tuition, careers, or program duration. (This is a simulated answer; a live AI chatbot needs ANTHROPIC_API_KEY configured.)";
 
+// Job titles/dates below are illustrative (simulated), not real specific postings —
+// but each url now points to that company's real careers page instead of a fake
+// example.com slug, so clicking through isn't a dead link.
 export const MOCK_JOBS = [
   {
     id: "job-1",
@@ -58,7 +61,7 @@ export const MOCK_JOBS = [
     location: "Bangkok, Thailand (Hybrid)",
     interest: "3D & Animation",
     postedAt: "2026-07-10",
-    url: "https://example.com/jobs/3d-character-artist",
+    url: "https://www.riotgames.com/en/work-with-us/jobs",
   },
   {
     id: "job-2",
@@ -67,7 +70,7 @@ export const MOCK_JOBS = [
     location: "Bangkok, Thailand",
     interest: "3D & Animation",
     postedAt: "2026-07-05",
-    url: "https://example.com/jobs/junior-animator",
+    url: "http://www.kantana.com/",
   },
   {
     id: "job-3",
@@ -76,7 +79,7 @@ export const MOCK_JOBS = [
     location: "Bangkok, Thailand",
     interest: "Game Dev",
     postedAt: "2026-07-12",
-    url: "https://example.com/jobs/gameplay-programmer",
+    url: "https://careers.garena.com/global/careers",
   },
   {
     id: "job-4",
@@ -85,7 +88,7 @@ export const MOCK_JOBS = [
     location: "Remote (Thailand)",
     interest: "Game Dev",
     postedAt: "2026-07-08",
-    url: "https://example.com/jobs/unity-developer",
+    url: "http://x10interactive.com/",
   },
   {
     id: "job-5",
@@ -94,7 +97,7 @@ export const MOCK_JOBS = [
     location: "Bangkok, Thailand",
     interest: "AI & Data",
     postedAt: "2026-07-14",
-    url: "https://example.com/jobs/ml-engineer-intern",
+    url: "https://www.ais.th/about-us/careers",
   },
   {
     id: "job-6",
@@ -103,7 +106,7 @@ export const MOCK_JOBS = [
     location: "Bangkok, Thailand (Hybrid)",
     interest: "AI & Data",
     postedAt: "2026-07-11",
-    url: "https://example.com/jobs/data-analyst",
+    url: "https://www.scb10x.com/careers",
   },
   {
     id: "job-7",
@@ -112,7 +115,7 @@ export const MOCK_JOBS = [
     location: "Bangkok, Thailand",
     interest: "Software",
     postedAt: "2026-07-13",
-    url: "https://example.com/jobs/frontend-developer",
+    url: "https://careers.bitkub.com/",
   },
   {
     id: "job-8",
@@ -121,7 +124,7 @@ export const MOCK_JOBS = [
     location: "Bangkok, Thailand",
     interest: "Software",
     postedAt: "2026-07-09",
-    url: "https://example.com/jobs/backend-developer-new-grad",
+    url: "https://careers.linecorp.com/jobs/?ca=All",
   },
 ];
 

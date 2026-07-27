@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { NavLink } from "react-router-dom";
+import { useLayoutEffect, useRef, useState } from "react";
+import { NavLink, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import DmeLogo from "./DmeLogo.jsx";
@@ -16,8 +16,31 @@ const links = [
   { to: "/contact", label: "Contact" },
 ];
 
+function isLinkActive(pathname, link) {
+  return link.to === "/" ? pathname === "/" : pathname.startsWith(link.to);
+}
+
 export default function Navbar() {
   const [open, setOpen] = useState(false);
+  const location = useLocation();
+  const linkRefs = useRef([]);
+  const [pill, setPill] = useState({ left: 0, width: 0, opacity: 0 });
+
+  const activeIndex = links.findIndex((l) => isLinkActive(location.pathname, l));
+
+  useLayoutEffect(() => {
+    function measure() {
+      const el = linkRefs.current[activeIndex];
+      if (el) {
+        setPill({ left: el.offsetLeft, width: el.offsetWidth, opacity: 1 });
+      } else {
+        setPill((p) => ({ ...p, opacity: 0 }));
+      }
+    }
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [activeIndex]);
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur dark:border-slate-800 dark:bg-dme-navy/95">
@@ -31,10 +54,17 @@ export default function Navbar() {
           DME <span className="text-dme-orange">Explorer</span>
         </NavLink>
 
-        <ul className="hidden flex-wrap items-center gap-1 text-sm lg:flex">
-          {links.map((link) => (
+        <ul className="relative hidden flex-wrap items-center gap-1 text-sm lg:flex">
+          <motion.span
+            aria-hidden="true"
+            className="absolute inset-y-0 -z-10 rounded bg-dme-orange"
+            animate={{ left: pill.left, width: pill.width, opacity: pill.opacity }}
+            transition={{ type: "spring", duration: 0.4, bounce: 0.2 }}
+          />
+          {links.map((link, i) => (
             <li key={link.to}>
               <NavLink
+                ref={(el) => (linkRefs.current[i] = el)}
                 to={link.to}
                 end={link.to === "/"}
                 className={({ isActive }) =>
@@ -45,18 +75,7 @@ export default function Navbar() {
                   }`
                 }
               >
-                {({ isActive }) => (
-                  <span className="relative">
-                    {isActive && (
-                      <motion.span
-                        layoutId="nav-active-pill"
-                        className="absolute inset-0 -z-10 -mx-3 -my-2 rounded bg-dme-orange px-3 py-2"
-                        transition={{ type: "spring", duration: 0.4, bounce: 0.2 }}
-                      />
-                    )}
-                    {link.label}
-                  </span>
-                )}
+                {link.label}
               </NavLink>
             </li>
           ))}
