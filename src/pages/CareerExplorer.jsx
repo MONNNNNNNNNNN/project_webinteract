@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Loader2 } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import FadeIn from "../components/FadeIn.jsx";
-import { prefetchCareers, getCachedCareers, CAREER_INTERESTS } from "../lib/careersCache.js";
+import { prefetchCareers, getCachedCareers, refreshCareers, CAREER_INTERESTS } from "../lib/careersCache.js";
 
 export default function CareerExplorer() {
   const [interest, setInterest] = useState("");
@@ -10,6 +10,7 @@ export default function CareerExplorer() {
   const [jobs, setJobs] = useState(cached?.jobs || []);
   const [simulated, setSimulated] = useState(cached ? Boolean(cached.simulated) : true);
   const [loading, setLoading] = useState(!cached);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -40,6 +41,17 @@ export default function CareerExplorer() {
     };
   }, [interest]);
 
+  function handleRefresh() {
+    setRefreshing(true);
+    refreshCareers(interest)
+      .then((data) => {
+        setJobs(data.jobs || []);
+        setSimulated(Boolean(data.simulated));
+      })
+      .catch(() => {})
+      .finally(() => setRefreshing(false));
+  }
+
   return (
     <div className="relative mx-auto max-w-4xl overflow-hidden px-4 py-12">
       <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_50%_-10%,rgba(249,115,22,0.12),transparent_60%)]" />
@@ -50,7 +62,7 @@ export default function CareerExplorer() {
           {simulated && " Showing simulated data — set JSEARCH_API_KEY for live listings."}
         </p>
 
-        <div className="mb-6 flex flex-wrap gap-2">
+        <div className="mb-6 flex flex-wrap items-center gap-2">
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={() => setInterest("")}
@@ -76,6 +88,16 @@ export default function CareerExplorer() {
               {f}
             </motion.button>
           ))}
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={handleRefresh}
+            disabled={loading || refreshing}
+            aria-label="Refresh listings"
+            className="ml-auto flex items-center gap-1.5 rounded-full border border-slate-300 px-3 py-1 text-xs text-slate-500 transition hover:border-dme-orange hover:text-dme-orange disabled:opacity-50 dark:border-slate-700 dark:text-slate-400"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
+            Refresh
+          </motion.button>
         </div>
       </FadeIn>
 

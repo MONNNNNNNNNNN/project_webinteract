@@ -30,3 +30,11 @@ export function prefetchCareers(interest = "") {
 export function getCachedCareers(interest = "") {
   return cache.get(interest)?.data || null;
 }
+
+// Bypasses the cache and issues a fresh request — used by the manual
+// refresh button. Simulated results are shuffled server-side per call,
+// so this reliably surfaces a different order/mix even without a live key.
+export function refreshCareers(interest = "") {
+  cache.delete(interest);
+  return prefetchCareers(interest);
+}

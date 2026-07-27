@@ -1,9 +1,18 @@
 import { JSEARCH_API_KEY, hasJSearchKey } from "./_lib/env.js";
 import { MOCK_JOBS } from "./_lib/mockData.js";
 
+function shuffled(arr) {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
 function simulatedJobs(interest) {
   const jobs = interest ? MOCK_JOBS.filter((j) => j.interest === interest) : MOCK_JOBS;
-  return jobs;
+  return shuffled(jobs);
 }
 
 const INTEREST_QUERY_TERMS = {
@@ -49,6 +58,7 @@ export default async function handler(req, res) {
   }
 
   const interest = (req.query?.interest || "").toString();
+  res.setHeader("Cache-Control", "no-store");
 
   if (hasJSearchKey) {
     try {
