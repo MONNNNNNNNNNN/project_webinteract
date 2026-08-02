@@ -2,6 +2,7 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Brain, Clapperboard, Gamepad2, Code2, X, ChevronDown } from "lucide-react";
 import { STUDY_PLAN, ELECTIVE_COURSES, CATEGORIES, PROGRAM_TOTAL_CREDITS } from "../lib/curriculumData.js";
+import { COURSE_DESCRIPTIONS } from "../lib/courseDescriptions.js";
 import FadeIn from "../components/FadeIn.jsx";
 
 const categoryColors = {
@@ -98,6 +99,7 @@ function CourseCard({ course, onSelect }) {
 }
 
 function CourseModal({ course, onClose }) {
+  const details = course && COURSE_DESCRIPTIONS[course.code];
   return (
     <AnimatePresence>
       {course && (
@@ -114,7 +116,7 @@ function CourseModal({ course, onClose }) {
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.2 }}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md rounded-2xl bg-white p-6 dark:bg-slate-900"
+            className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 dark:bg-slate-900"
           >
             <div className="mb-3 flex items-start justify-between gap-3">
               <div>
@@ -139,10 +141,30 @@ function CourseModal({ course, onClose }) {
                 </span>
               )}
             </div>
-            <p className="text-sm text-slate-600 dark:text-slate-300">
-              Detailed course description not yet published here — refer to the official KKU course
-              syllabus for full content, prerequisites, and learning outcomes.
-            </p>
+            {details ? (
+              <div className="space-y-3">
+                {details.prerequisites && (
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    <span className="font-semibold text-slate-600 dark:text-slate-300">Prerequisites:</span>{" "}
+                    {details.prerequisites}
+                  </p>
+                )}
+                <p className="text-sm text-slate-600 dark:text-slate-300">{details.descriptionEn}</p>
+                {details.descriptionTh && (
+                  <p className="border-t border-slate-100 pt-3 text-xs italic text-slate-500 dark:border-slate-800 dark:text-slate-500">
+                    {details.descriptionTh}
+                  </p>
+                )}
+                <p className="text-[11px] text-slate-400 dark:text-slate-600">
+                  Source: official KKU DME curriculum document (มคอ.2)
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-600 dark:text-slate-300">
+                Detailed course description not yet published here — refer to the official KKU course
+                syllabus for full content, prerequisites, and learning outcomes.
+              </p>
+            )}
           </motion.div>
         </motion.div>
       )}
