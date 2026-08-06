@@ -38,10 +38,12 @@ export default function AdminLogin() {
     <div className="mx-auto max-w-sm px-4 py-24">
       <h1 className="mb-2 text-2xl font-bold text-slate-900 dark:text-white">Admin Login</h1>
       <p className="mb-6 text-sm text-slate-600 dark:text-slate-400">
-        Simulated auth — demo credential:{" "}
-        <code className="rounded bg-slate-100 px-1 dark:bg-slate-800">admin@dme.kku.ac.th</code> /{" "}
-        <code className="rounded bg-slate-100 px-1 dark:bg-slate-800">demo1234</code>. Set SUPABASE_URL +
-        SUPABASE_ANON_KEY to switch to real Supabase Auth.
+        Falls back to a demo credential (<code className="rounded bg-slate-100 px-1 dark:bg-slate-800">admin@dme.kku.ac.th</code> /{" "}
+        <code className="rounded bg-slate-100 px-1 dark:bg-slate-800">demo1234</code>) when Supabase isn't
+        configured. Set <code className="rounded bg-slate-100 px-1 dark:bg-slate-800">SUPABASE_URL</code>,{" "}
+        <code className="rounded bg-slate-100 px-1 dark:bg-slate-800">SUPABASE_ANON_KEY</code>, and{" "}
+        <code className="rounded bg-slate-100 px-1 dark:bg-slate-800">SUPABASE_SERVICE_ROLE_KEY</code> to use
+        real Supabase Auth instead.
       </p>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">

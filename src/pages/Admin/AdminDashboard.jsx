@@ -6,6 +6,7 @@ export default function AdminDashboard() {
   const [checking, setChecking] = useState(true);
   const [email, setEmail] = useState(null);
   const [faqs, setFaqs] = useState([]);
+  const [simulated, setSimulated] = useState(true);
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
 
@@ -20,7 +21,10 @@ export default function AdminDashboard() {
         setEmail(data.email);
         return fetch("/api/admin/faqs")
           .then((res) => res.json())
-          .then((d) => setFaqs(d.faqs || []));
+          .then((d) => {
+            setFaqs(d.faqs || []);
+            setSimulated(Boolean(d.simulated));
+          });
       })
       .finally(() => setChecking(false));
   }, [navigate]);
@@ -37,6 +41,7 @@ export default function AdminDashboard() {
     const data = await res.json();
     if (res.ok) {
       setFaqs((f) => [...f, data.faq]);
+      setSimulated(Boolean(data.simulated));
       setQuestion("");
       setAnswer("");
     }
@@ -72,7 +77,9 @@ export default function AdminDashboard() {
       </div>
 
       <p className="mb-4 text-xs text-slate-500">
-        Simulated store — FAQ entries here reset when the server restarts (not persisted to Supabase yet).
+        {simulated
+          ? "Simulated store — FAQ entries here reset when the server restarts (Supabase isn't configured)."
+          : "Persisted to Supabase — changes here are saved for real."}
       </p>
 
       <form
