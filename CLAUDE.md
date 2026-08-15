@@ -59,14 +59,21 @@ after 7 days of inactivity (manual restart needed before a demo after a break).
 ## Folder structure
 
 ```
-api/                        Vercel serverless functions (empty — not built yet)
+api/                        Vercel serverless functions
+  careers.js                 JSearch listings, cache-first (see Job caching below)
+  chat.js                    ChatWidget answers via Claude
+  admin/                     login / logout / session / faqs CRUD
+  _lib/                      env.js (key flags), session.js (HMAC cookie),
+                             jobCache.js (Supabase job cache), mockData.js
 src/
   pages/                    One file per route
-    Admin/                  Admin routes (stubbed, needs Supabase Auth)
+    Admin/                  Admin routes (live — Supabase Auth + session cookie)
   components/               Navbar, Footer, ChatWidget, ComingSoon, etc.
   lib/                      Static data modules (curriculumData.js, tuitionData.js)
-                             that the real-content pages import — no backend calls
-supabase/migrations/        SQL migrations: programs, courses, student_status, fee_detail
+                             that the real-content pages import — no backend calls,
+                             plus careersCache.js (localStorage job cache)
+supabase/migrations/        SQL migrations: programs, courses, student_status,
+                             fee_detail, faqs, job_cache, job_fetch_budget
 docs/reference/             Extracted source data — read these instead of the PDFs
   curriculum-data.md         Full 4-year study plan + 4 elective-track course lists
   tuition-data.md            Full fee breakdown per student type / period
@@ -99,8 +106,40 @@ no env vars needed.
 - `ChatWidget.jsx` (floating component, not a route) — needs `ANTHROPIC_API_KEY`,
   else answers from a small hardcoded FAQ (still DME-scoped, zero cost)
 
-**Stubbed:**
-- `Admin/AdminLogin.jsx`, `Admin/AdminDashboard.jsx` — needs Supabase Auth
+**Live against Supabase:** `Admin/AdminLogin.jsx` + `Admin/AdminDashboard.jsx`
+authenticate through Supabase Auth and persist FAQs to Postgres. The demo
+credential path in `api/admin/login.js` only engages when Supabase env vars are
+absent, so it's unreachable in production.
+
+## Job caching (Career Explorer)
+
+RapidAPI's free JSearch tier is metered monthly and returns only ~10 listings per
+call, so listings are cached in two places rather than fetched per page view:
+
+- **Server** — `api/_lib/jobCache.js` writes into the `job_cache` table, which
+  **accumulates**: each live fetch upserts on `(interest, id)`, so repeated
+  refreshes build a larger pool than any single JSearch response. `job_fetch_meta`
+  records the last live call per interest and enforces a 10-minute floor between
+  them (a refresh inside that window is served from cache with an explanatory
+  `note`). Cached lists are served untouched for 6 hours. Rows unseen for 30 days
+  are pruned after a successful fetch. This layer is shared across all users —
+  serverless functions are stateless, so process memory would not help.
+- **Monthly ceiling** — `job_fetch_budget` plus the `consume_job_fetch_budget()`
+  function cap live calls at `MONTHLY_LIVE_BUDGET` (170, under the BASIC plan's
+  200). Spacing calls out is not the same as capping them: the plan ran dry under
+  the 10-minute floor alone. The check-and-increment happens in one SQL statement
+  so concurrent invocations can't both claim the last call, and the function is
+  revoked from `anon`/`authenticated` so only the server can spend budget. If the
+  budget can't be read the code fails *closed* — Supabase being down means the
+  result couldn't be cached anyway, so a live call would be quota spent for
+  nothing.
+- **Browser** — `src/lib/careersCache.js` persists each interest's list to
+  localStorage (30 min fresh, discarded after 7 days) so a reload or a return
+  visit paints instantly and, inside the fresh window, makes no request at all.
+
+The unfiltered "All" query is keyed under the sentinel `'all'`, not `''`, because
+PostgREST's `?interest=eq.` with no value is ambiguous. `jobCache.js` maps it back
+to `""` on the way out, so the sentinel never reaches the client.
 
 ## Environment variables
 

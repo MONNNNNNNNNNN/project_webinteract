@@ -1,5 +1,27 @@
-import { JSEARCH_API_KEY, hasJSearchKey } from "./_lib/env.js";
+import { JSEARCH_API_KEY, hasJSearchKey, hasSupabaseAdmin } from "./_lib/env.js";
 import { MOCK_JOBS } from "./_lib/mockData.js";
+import {
+  readCachedJobs,
+  upsertJobs,
+  readFetchMeta,
+  touchFetchMeta,
+  pruneStaleJobs,
+  consumeFetchBudget,
+} from "./_lib/jobCache.js";
+
+// How long a cached list is served without touching JSearch at all.
+const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+// Hard floor between live calls — applies even to an explicit refresh.
+// This is the actual quota guard: RapidAPI's free JSearch tier is metered
+// monthly, so a user hammering the refresh button must not drain it.
+const MIN_LIVE_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
+// Hard ceiling on live calls per calendar month. Spacing calls out is not
+// the same as capping them — the RapidAPI BASIC plan allows 200/month and
+// ran dry under the interval alone. Set below the plan limit so a miscount
+// or a manual test can't push it over.
+const MONTHLY_LIVE_BUDGET = 170;
+// Live JSearch returns ~10 rows per call; the cache accumulates far more.
+const MAX_JOBS = 60;
 
 function shuffled(arr) {
   const copy = [...arr];
@@ -27,15 +49,32 @@ async function liveJobs(interest) {
   const query = `${term} jobs Thailand`;
   const url = `https://jsearch.p.rapidapi.com/search-v2?query=${encodeURIComponent(query)}&num_pages=1&country=th&date_posted=all`;
 
-  const res = await fetch(url, {
-    headers: {
-      "x-rapidapi-key": JSEARCH_API_KEY,
-      "x-rapidapi-host": "jsearch.p.rapidapi.com",
-    },
-  });
+  // Time-boxed so a slow provider can't burn the 10s Hobby budget when we
+  // already have a cached list ready to serve instead.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 6000);
 
-  if (!res.ok) throw new Error(`JSearch API ${res.status}`);
-  const data = await res.json();
+  let data;
+  try {
+    const res = await fetch(url, {
+      headers: {
+        "x-rapidapi-key": JSEARCH_API_KEY,
+        "x-rapidapi-host": "jsearch.p.rapidapi.com",
+      },
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      // Include a snippet of the provider's own explanation — the
+      // difference between "quota exhausted" and "bad key" is a 429 vs a
+      // 403 body, and without it the failure is unactionable from logs.
+      const detail = await res.text().catch(() => "");
+      throw new Error(`JSearch API ${res.status} ${detail.slice(0, 160)}`.trim());
+    }
+    data = await res.json();
+  } finally {
+    clearTimeout(timer);
+  }
+
   const jobs = data.data?.jobs || [];
 
   return jobs.map((j) => ({
@@ -51,6 +90,29 @@ async function liveJobs(interest) {
   }));
 }
 
+// No Supabase configured — the cache table doesn't exist, so behave the way
+// this endpoint did before it had one: live if a key is set, else simulated.
+async function withoutCache(interest, res) {
+  if (hasJSearchKey) {
+    try {
+      const jobs = await liveJobs(interest);
+      res.status(200).json({ jobs, simulated: false, source: "live", cached: false });
+      return;
+    } catch (err) {
+      console.error("[careers] uncached live fetch failed:", err.message);
+      res.status(200).json({
+        jobs: simulatedJobs(interest),
+        simulated: true,
+        source: "simulated",
+        cached: false,
+        note: "Live JSearch call failed, showing simulated listings instead.",
+      });
+      return;
+    }
+  }
+  res.status(200).json({ jobs: simulatedJobs(interest), simulated: true, source: "simulated", cached: false });
+}
+
 export default async function handler(req, res) {
   if (req.method !== "GET") {
     res.status(405).json({ error: "Method not allowed" });
@@ -58,22 +120,161 @@ export default async function handler(req, res) {
   }
 
   const interest = (req.query?.interest || "").toString();
-  res.setHeader("Cache-Control", "no-store");
+  const refresh = (req.query?.refresh || "").toString() === "1";
 
-  if (hasJSearchKey) {
+  // A plain read is safe to serve from Vercel's edge for a few minutes,
+  // which cuts function invocations on top of the JSearch savings. An
+  // explicit refresh must always reach the function.
+  res.setHeader(
+    "Cache-Control",
+    refresh ? "no-store" : "public, s-maxage=300, stale-while-revalidate=3600"
+  );
+
+  if (!hasSupabaseAdmin) {
+    await withoutCache(interest, res);
+    return;
+  }
+
+  let cached = [];
+  let meta = null;
+  let liveError = null;
+  try {
+    [cached, meta] = await Promise.all([
+      readCachedJobs(interest, MAX_JOBS),
+      readFetchMeta(interest),
+    ]);
+  } catch (err) {
+    // Cache unreachable — don't fail the page over it, but say so: a silent
+    // catch here is what made the first production failure hard to diagnose.
+    console.error("[careers] cache read failed:", err.message);
+  }
+
+  const sinceLastFetch = meta?.last_fetch_at
+    ? Date.now() - new Date(meta.last_fetch_at).getTime()
+    : Infinity;
+
+  // Quota floor first, then any of: nothing cached yet, user asked for
+  // fresh results, or the cache has gone stale.
+  const shouldFetchLive =
+    hasJSearchKey &&
+    sinceLastFetch >= MIN_LIVE_INTERVAL_MS &&
+    (cached.length === 0 || refresh || sinceLastFetch >= CACHE_TTL_MS);
+
+  console.log(
+    `[careers] interest="${interest || "all"}" cached=${cached.length} ` +
+      `sinceLastFetchMs=${sinceLastFetch} jsearchKey=${hasJSearchKey} live=${shouldFetchLive}`
+  );
+
+  // The month's hard cap. Checked and spent atomically, so concurrent
+  // invocations can't both slip through on the last remaining call. Failing
+  // closed is deliberate: if the budget can't be read, Supabase is unwell,
+  // the result couldn't be cached anyway, and a live call would be quota
+  // spent for nothing.
+  let budget = null;
+  if (shouldFetchLive) {
     try {
-      const jobs = await liveJobs(interest);
-      res.status(200).json({ jobs, simulated: false });
-      return;
-    } catch {
-      res.status(200).json({
-        jobs: simulatedJobs(interest),
-        simulated: true,
-        note: "Live JSearch call failed, showing simulated listings instead.",
-      });
-      return;
+      budget = await consumeFetchBudget(MONTHLY_LIVE_BUDGET);
+    } catch (err) {
+      console.error("[careers] budget check failed, skipping live call:", err.message);
+      budget = { allowed: false, calls: null, month: null };
+    }
+    if (!budget.allowed) {
+      console.warn(
+        `[careers] monthly live budget spent (${budget.calls}/${MONTHLY_LIVE_BUDGET}) — serving cache`
+      );
     }
   }
 
-  res.status(200).json({ jobs: simulatedJobs(interest), simulated: true });
+  const goLive = shouldFetchLive && budget?.allowed === true;
+
+  if (goLive) {
+    // Record the attempt *before* making it, so a failing provider backs off
+    // for the same 10 minutes a successful one does. Recording it only on
+    // success meant a 429 left the cache empty and last_fetch_at unset, so
+    // every subsequent request retried immediately — hammering exactly the
+    // quota this cache exists to protect.
+    try {
+      await touchFetchMeta(interest, meta);
+    } catch (err) {
+      console.error("[careers] fetch-meta write failed:", err.message);
+    }
+
+    try {
+      const live = await liveJobs(interest);
+      await upsertJobs(interest, live);
+
+      // Housekeeping only — a failed prune must not cost the user their
+      // freshly-fetched listings.
+      try {
+        await pruneStaleJobs(interest);
+      } catch (err) {
+        console.error("[careers] prune failed:", err.message);
+      }
+
+      // Re-read so the response is the merged, accumulated set rather than
+      // just this batch — that's what makes the list grow over time.
+      const merged = await readCachedJobs(interest, MAX_JOBS);
+      const jobs = merged.length ? merged : live;
+
+      res.status(200).json({
+        jobs,
+        simulated: false,
+        source: "live",
+        cached: true,
+        added: live.length,
+        total: jobs.length,
+        lastFetchedAt: new Date().toISOString(),
+        budgetUsed: budget.calls,
+        budgetLimit: MONTHLY_LIVE_BUDGET,
+      });
+      return;
+    } catch (err) {
+      // Live call or cache write failed — fall through and serve whatever
+      // is already cached.
+      liveError = err.message;
+      console.error("[careers] live fetch/cache write failed:", err.message);
+    }
+  }
+
+  const budgetSpent = budget?.allowed === false;
+
+  if (cached.length) {
+    const nextLiveFetchAt =
+      meta?.last_fetch_at && Number.isFinite(sinceLastFetch)
+        ? new Date(new Date(meta.last_fetch_at).getTime() + MIN_LIVE_INTERVAL_MS).toISOString()
+        : null;
+
+    res.status(200).json({
+      jobs: cached,
+      simulated: false,
+      source: "cache",
+      cached: true,
+      total: cached.length,
+      lastFetchedAt: meta?.last_fetch_at || null,
+      nextLiveFetchAt,
+      note: budgetSpent
+        ? "Monthly live-data budget reached — serving saved listings until next month."
+        : liveError
+          ? "Live job data is temporarily unavailable — serving saved listings."
+          : refresh && !shouldFetchLive
+            ? "Recently refreshed — serving the saved list to conserve API quota."
+            : undefined,
+    });
+    return;
+  }
+
+  // Nothing cached and nothing live. Say which of the two it is — telling a
+  // user to set JSEARCH_API_KEY when it's already set and the quota is spent
+  // sends them chasing the wrong problem.
+  res.status(200).json({
+    jobs: simulatedJobs(interest),
+    simulated: true,
+    source: "simulated",
+    cached: false,
+    note: budgetSpent
+      ? "Monthly live-data budget reached — showing representative listings until next month."
+      : hasJSearchKey
+        ? "Live job data is temporarily unavailable — showing representative listings."
+        : "Showing representative listings — set JSEARCH_API_KEY for live job data.",
+  });
 }

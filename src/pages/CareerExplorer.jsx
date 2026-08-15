@@ -4,20 +4,36 @@ import { Loader2, RefreshCw } from "lucide-react";
 import FadeIn from "../components/FadeIn.jsx";
 import { prefetchCareers, getCachedCareers, refreshCareers, CAREER_INTERESTS } from "../lib/careersCache.js";
 
+function relativeTime(iso) {
+  if (!iso) return null;
+  const diffMin = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (!Number.isFinite(diffMin) || diffMin < 1) return "just now";
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.round(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  return `${Math.round(diffHr / 24)}d ago`;
+}
+
 export default function CareerExplorer() {
   const [interest, setInterest] = useState("");
   const cached = getCachedCareers("");
   const [jobs, setJobs] = useState(cached?.jobs || []);
   const [simulated, setSimulated] = useState(cached ? Boolean(cached.simulated) : true);
+  const [meta, setMeta] = useState(cached || null);
   const [loading, setLoading] = useState(!cached);
   const [refreshing, setRefreshing] = useState(false);
+
+  function applyData(data) {
+    setJobs(data.jobs || []);
+    setSimulated(Boolean(data.simulated));
+    setMeta(data);
+  }
 
   useEffect(() => {
     let cancelled = false;
     const cachedNow = getCachedCareers(interest);
     if (cachedNow) {
-      setJobs(cachedNow.jobs || []);
-      setSimulated(Boolean(cachedNow.simulated));
+      applyData(cachedNow);
       setLoading(false);
     } else {
       setLoading(true);
@@ -25,9 +41,7 @@ export default function CareerExplorer() {
 
     prefetchCareers(interest)
       .then((data) => {
-        if (cancelled) return;
-        setJobs(data.jobs || []);
-        setSimulated(Boolean(data.simulated));
+        if (!cancelled) applyData(data);
       })
       .catch(() => {
         if (!cancelled) setJobs([]);
@@ -44,13 +58,12 @@ export default function CareerExplorer() {
   function handleRefresh() {
     setRefreshing(true);
     refreshCareers(interest)
-      .then((data) => {
-        setJobs(data.jobs || []);
-        setSimulated(Boolean(data.simulated));
-      })
+      .then(applyData)
       .catch(() => {})
       .finally(() => setRefreshing(false));
   }
+
+  const savedAt = relativeTime(meta?.lastFetchedAt);
 
   return (
     <div className="relative mx-auto max-w-4xl overflow-hidden px-4 py-12">
@@ -59,7 +72,7 @@ export default function CareerExplorer() {
         <h1 className="mb-2 text-3xl font-bold text-slate-900 dark:text-white">Career Explorer</h1>
         <p className="mb-6 text-slate-600 dark:text-slate-400">
           Live, currently-open job listings for DME graduates, filterable by interest area.
-          {simulated && " Showing simulated data — set JSEARCH_API_KEY for live listings."}
+          {simulated && ` ${meta?.note || "Showing representative listings."}`}
         </p>
 
         <div className="mb-6 flex flex-wrap items-center gap-2">
@@ -99,6 +112,14 @@ export default function CareerExplorer() {
             Refresh
           </motion.button>
         </div>
+
+        {!loading && !simulated && jobs.length > 0 && (
+          <p className="-mt-3 mb-6 text-xs text-slate-500 dark:text-slate-500">
+            {jobs.length} listing{jobs.length === 1 ? "" : "s"} saved
+            {savedAt && ` · updated ${savedAt}`}
+            {meta?.note && ` · ${meta.note}`}
+          </p>
+        )}
       </FadeIn>
 
       {loading && (
