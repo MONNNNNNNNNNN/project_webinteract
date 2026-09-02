@@ -1,4 +1,4 @@
-import { readSession } from "../_lib/session.js";
+import { readSession, sessionsDisabled, SESSIONS_DISABLED_MESSAGE } from "../_lib/session.js";
 import { DEFAULT_FAQS } from "../_lib/mockData.js";
 import { SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, hasSupabase, hasSupabaseAdmin } from "../_lib/env.js";
 
@@ -67,6 +67,13 @@ export default async function handler(req, res) {
       }
     }
     res.status(200).json({ faqs: simFaqs, simulated: true });
+    return;
+  }
+
+  // Misconfiguration, not a failed login — 503 so it reads as "fix the deploy"
+  // rather than "wrong password".
+  if (sessionsDisabled) {
+    res.status(503).json({ error: SESSIONS_DISABLED_MESSAGE });
     return;
   }
 
