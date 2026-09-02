@@ -5,9 +5,17 @@
 // mutations require the admin session cookie and write with the service role
 // key, Supabase failures surface as 502 with a detail.
 //
-// The `type` path segment is never interpolated into SQL, a table name, or a
-// column list. It is only ever used as a key into CONTENT_TYPES below; anything
-// not in that map is rejected before a request is built.
+// `type` arrives as a query parameter rather than a path segment. It was
+// api/content/[type].js, which works locally but is not routed by Vercel: in
+// production every /api/content/<anything> fell through to the SPA rewrite and
+// returned index.html with a 200, including paths that should have 400'd. The
+// static function paths route fine, so it is the dynamic segment specifically.
+// A query parameter needs only plain filesystem matching, which demonstrably
+// works.
+//
+// It is never interpolated into SQL, a table name, or a column list — only ever
+// used as a key into CONTENT_TYPES below, and anything not in that map is
+// rejected before a request is built.
 
 import { randomUUID } from "node:crypto";
 import { readSession, sessionsDisabled, SESSIONS_DISABLED_MESSAGE } from "../_lib/session.js";

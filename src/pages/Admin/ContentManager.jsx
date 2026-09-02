@@ -4,6 +4,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { emptyValues } from "./contentSchemas.js";
 
+/** Append a parameter to an endpoint that may or may not already have a query. */
+function withParam(endpoint, key, value) {
+  return `${endpoint}${endpoint.includes("?") ? "&" : "?"}${key}=${encodeURIComponent(value)}`;
+}
+
 function FieldInput({ field, value, onChange }) {
   const base =
     "w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-500";
@@ -163,7 +168,7 @@ export default function ContentManager({ schema }) {
   async function remove(id) {
     setError("");
     try {
-      const res = await fetch(`${schema.endpoint}?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      const res = await fetch(withParam(schema.endpoint, "id", id), { method: "DELETE" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || `Delete failed (${res.status})`);
       if (editingId === id) cancelEdit();

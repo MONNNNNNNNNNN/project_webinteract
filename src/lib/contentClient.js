@@ -19,7 +19,7 @@ import { useEffect, useState } from "react";
  */
 export async function loadContent(type, fallback = null) {
   try {
-    const res = await fetch(`/api/content/${type}`);
+    const res = await fetch(`/api/content?type=${encodeURIComponent(type)}`);
     if (!res.ok) return fallback;
     const data = await res.json();
     if (data.simulated || !Array.isArray(data.items)) return fallback;
