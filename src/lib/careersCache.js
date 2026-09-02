@@ -66,8 +66,16 @@ function clearStored(interest) {
 // Union by job id, keeping the newly-fetched ordering first, so a refresh
 // grows the list instead of replacing it. Only merges like with like —
 // mixing simulated listings into real ones would be misleading.
+//
+// Skipped entirely when the server answered from its own cache (`cached`),
+// because that list is already the accumulated set and carrying on top of it
+// defeats the 30-day prune: a carried job is absent from every later response
+// by definition, and each write refreshes the stored `ts`, so MAX_AGE_MS never
+// fires and a dead posting stays in that browser forever. Merging is only the
+// client's job when the server had no cache to accumulate into.
 function mergeJobs(previous, next) {
   if (!previous?.jobs?.length) return next;
+  if (next.cached) return next;
   if (Boolean(previous.simulated) !== Boolean(next.simulated)) return next;
 
   const seen = new Set(next.jobs.map((j) => j.id));

@@ -10,7 +10,15 @@ import {
 } from "./_lib/jobCache.js";
 
 // How long a cached list is served without touching JSearch at all.
-const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+//
+// This number is set by the monthly budget, not by how fresh listings feel.
+// App.jsx prefetches 5 buckets ("All" + the 4 interests) and each keeps its own
+// job_fetch_meta row, so live calls land at 5 x (24h / TTL) per day. At a 6h TTL
+// that is 20/day = 600/month against a 170 cap: the ceiling bound around day 9
+// and the cache sat frozen for the rest of every month. At 24h it is 5/day =
+// 150/month, which fits with headroom for manual refreshes.
+// Changing this, MONTHLY_LIVE_BUDGET, or the bucket count means redoing that sum.
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 // Hard floor between live calls — applies even to an explicit refresh.
 // This is the actual quota guard: RapidAPI's free JSearch tier is metered
 // monthly, so a user hammering the refresh button must not drain it.
@@ -180,12 +188,18 @@ export default async function handler(req, res) {
     }
     if (!budget.allowed) {
       console.warn(
-        `[careers] monthly live budget spent (${budget.calls}/${MONTHLY_LIVE_BUDGET}) — serving cache`
+        `[careers] monthly live budget spent (${budget.calls ?? "?"}/${MONTHLY_LIVE_BUDGET}) — serving cache`
       );
     }
   }
 
   const goLive = shouldFetchLive && budget?.allowed === true;
+
+  // Hoisted out of the try below. A batch that arrived from JSearch but failed
+  // to persist has already cost a call from the month's budget — throwing it
+  // away and serving a staler list wastes that call for nothing.
+  let live = null;
+  let livePersisted = false;
 
   if (goLive) {
     // Record the attempt *before* making it, so a failing provider backs off
@@ -200,8 +214,9 @@ export default async function handler(req, res) {
     }
 
     try {
-      const live = await liveJobs(interest);
+      live = await liveJobs(interest);
       await upsertJobs(interest, live);
+      livePersisted = true;
 
       // Housekeeping only — a failed prune must not cost the user their
       // freshly-fetched listings.
@@ -237,6 +252,28 @@ export default async function handler(req, res) {
   }
 
   const budgetSpent = budget?.allowed === false;
+
+  // Reached when the live call itself succeeded but a cache write or the
+  // re-read after it did not. Serve the batch we hold, unioned over whatever
+  // was already cached, rather than falling back past it to a staler list.
+  if (live?.length) {
+    const seen = new Set(live.map((j) => j.id));
+    const jobs = [...live, ...cached.filter((j) => !seen.has(j.id))].slice(0, MAX_JOBS);
+
+    res.status(200).json({
+      jobs,
+      simulated: false,
+      source: "live",
+      cached: livePersisted,
+      added: live.length,
+      total: jobs.length,
+      lastFetchedAt: new Date().toISOString(),
+      note: livePersisted
+        ? undefined
+        : "Live listings loaded, but saving them for next time failed.",
+    });
+    return;
+  }
 
   if (cached.length) {
     const nextLiveFetchAt =

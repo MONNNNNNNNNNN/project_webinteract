@@ -144,19 +144,6 @@ export async function consumeFetchBudget(limit) {
   return { allowed: row.allowed, calls: row.calls, month: row.month };
 }
 
-/** Current month's usage, for status readouts. Never spends budget. */
-export async function readFetchBudget() {
-  const month = new Date().toISOString().slice(0, 7);
-  const url =
-    `${SUPABASE_URL}/rest/v1/job_fetch_budget` +
-    `?month=eq.${encodeURIComponent(month)}&select=month,calls`;
-
-  const res = await timedFetch(url, { headers: restHeaders(SUPABASE_ANON_KEY) });
-  if (!res.ok) throw new Error(`job_fetch_budget select ${res.status}`);
-  const rows = await res.json();
-  return rows[0] || { month, calls: 0 };
-}
-
 /** When JSearch was last actually called for this interest, or null. */
 export async function readFetchMeta(interest) {
   const url =

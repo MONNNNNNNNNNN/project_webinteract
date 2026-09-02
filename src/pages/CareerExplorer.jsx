@@ -18,7 +18,7 @@ export default function CareerExplorer() {
   const [interest, setInterest] = useState("");
   const cached = getCachedCareers("");
   const [jobs, setJobs] = useState(cached?.jobs || []);
-  const [simulated, setSimulated] = useState(cached ? Boolean(cached.simulated) : true);
+  const [simulated, setSimulated] = useState(cached ? Boolean(cached.simulated) : false);
   const [meta, setMeta] = useState(cached || null);
   const [loading, setLoading] = useState(!cached);
   const [refreshing, setRefreshing] = useState(false);
@@ -59,7 +59,7 @@ export default function CareerExplorer() {
     setRefreshing(true);
     refreshCareers(interest)
       .then(applyData)
-      .catch(() => {})
+      .catch((err) => console.error("[careers] refresh failed:", err.message))
       .finally(() => setRefreshing(false));
   }
 
@@ -143,7 +143,9 @@ export default function CareerExplorer() {
                 rel="noreferrer"
                 className="block rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:scale-[1.02] hover:border-dme-orange hover:shadow-lg hover:shadow-dme-orange/10 dark:border-slate-800 dark:bg-slate-900/40 dark:shadow-none"
               >
-                <p className="text-xs uppercase tracking-wide text-dme-orange">{job.interest}</p>
+                {job.interest && (
+                  <p className="text-xs uppercase tracking-wide text-dme-orange">{job.interest}</p>
+                )}
                 <p className="mt-1 font-semibold text-slate-900 dark:text-white">{job.title}</p>
                 <p className="text-sm text-slate-600 dark:text-slate-400">{job.company}</p>
                 <p className="mt-2 text-xs text-slate-500">{job.location}</p>
