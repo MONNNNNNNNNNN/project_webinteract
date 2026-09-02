@@ -48,7 +48,7 @@ export const FAQ_FACTS = [
 ];
 
 export const FALLBACK_ANSWER =
-  "I'm not sure about that one yet — try asking about the DME program, electives, tuition, careers, or program duration. (This is a simulated answer; a live AI chatbot needs ANTHROPIC_API_KEY configured.)";
+  "I'm not sure about that one yet — try asking about the DME program, electives, tuition, careers, or program duration. (Answering from a small built-in set of facts; the full knowledge base needs Supabase configured.)";
 
 // Job titles/dates below are illustrative (simulated), not real specific postings —
 // but each url now points to that company's real careers page instead of a fake
