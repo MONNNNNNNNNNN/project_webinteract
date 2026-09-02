@@ -61,11 +61,20 @@ export const FEE_BREAKDOWN = {
   },
 };
 
-export function grandTotal(statusId, period) {
-  const rows = FEE_BREAKDOWN[statusId][period];
-  return rows
-    .filter((r) => !(period === "Per Semester" && r.excludedFromTotal))
-    .reduce((sum, r) => sum + r.amount, 0);
+/**
+ * Sum a set of fee rows.
+ *
+ * Takes the rows rather than looking them up, so the same function serves the
+ * static FEE_BREAKDOWN above and rows loaded from site_fee_rows. Accepts either
+ * spelling of the exclusion flag so a caller can pass a raw database row.
+ *
+ * One-off charges (enrollment fee, summer training) are displayed in the
+ * per-semester view but left out of its total — they are not owed every term.
+ */
+export function grandTotal(rows, period) {
+  return (rows || [])
+    .filter((r) => !(period === "Per Semester" && (r.excludedFromTotal ?? r.excluded_from_total)))
+    .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
 }
 
 export function formatBaht(amount) {

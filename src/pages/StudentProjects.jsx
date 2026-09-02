@@ -1,9 +1,18 @@
-import { useState } from "react";
+import { createElement, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Clapperboard, Gamepad2, Bot, X } from "lucide-react";
 import FadeIn from "../components/FadeIn.jsx";
+import { useContent } from "../lib/contentClient.js";
 
-const projects = [
+// A lucide icon is a React component and cannot be stored in Postgres, so rows
+// carry an icon *name* and it is resolved here. Unknown names resolve to
+// undefined and the card renders an empty tile rather than crashing — an admin
+// can type anything into that field.
+const ICONS = { Clapperboard, Gamepad2, Bot };
+
+// Seed for supabase/migrations/0011 and the runtime fallback when Supabase is
+// unreachable. Keep in sync with that migration if you edit it here.
+const STATIC_PROJECTS = [
   {
     title: "Thailand Research Expo 2024 — Bronze Medal",
     category: "Award",
@@ -21,25 +30,40 @@ const projects = [
   {
     title: "Interactive Album Story",
     category: "Digital Media",
-    icon: Clapperboard,
+    iconName: "Clapperboard",
     desc: "A 3D animated short combining character rigging and real-time rendering, produced as a Digital Media Studio capstone.",
   },
   {
     title: "Campus Quest",
     category: "Interactive",
-    icon: Gamepad2,
+    iconName: "Gamepad2",
     desc: "A game-dev orientation project that turns the KKU campus into an explorable 2D game for incoming freshmen.",
   },
   {
     title: "DME FAQ Assistant",
     category: "Software / AI",
-    icon: Bot,
+    iconName: "Bot",
     desc: "An early prototype chatbot answering common DME admissions questions, built with a lightweight NLP pipeline.",
   },
 ];
 
+// Storage shape -> the shape this page already renders. Module scope because
+// useContent takes it as an effect dependency.
+function mapProjectRow(row) {
+  return {
+    id: row.id,
+    title: row.title,
+    category: row.category,
+    image: row.image_url || undefined,
+    iconName: row.icon_name || undefined,
+    real: row.is_real,
+    desc: row.description,
+  };
+}
+
 export default function StudentProjects() {
   const [selected, setSelected] = useState(null);
+  const projects = useContent("projects", STATIC_PROJECTS, mapProjectRow);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-12">
@@ -54,7 +78,7 @@ export default function StudentProjects() {
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {projects.map((p, i) => (
-          <FadeIn key={p.title} delay={0.08 * i}>
+          <FadeIn key={p.id || p.title} delay={0.08 * i}>
             <button
               onClick={() => setSelected(p)}
               className="block h-full w-full overflow-hidden rounded-xl border border-slate-200 bg-white text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:scale-[1.02] hover:border-dme-orange hover:shadow-lg hover:shadow-dme-orange/10 dark:border-slate-800 dark:bg-slate-900/40 dark:shadow-none"
@@ -63,7 +87,11 @@ export default function StudentProjects() {
                 <img src={p.image} alt={p.title} className="h-40 w-full object-cover object-top" />
               ) : (
                 <div className="flex h-40 items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900">
-                  <p.icon className="h-12 w-12 text-dme-orange" strokeWidth={1.5} />
+                  {ICONS[p.iconName] &&
+                    createElement(ICONS[p.iconName], {
+                      className: "h-12 w-12 text-dme-orange",
+                      strokeWidth: 1.5,
+                    })}
                 </div>
               )}
               <div className="p-4">
@@ -107,7 +135,11 @@ export default function StudentProjects() {
                   <img src={selected.image} alt={selected.title} className="w-full object-cover object-top" />
                 ) : (
                   <div className="flex h-48 items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900">
-                    <selected.icon className="h-16 w-16 text-dme-orange" strokeWidth={1.5} />
+                    {ICONS[selected.iconName] &&
+                      createElement(ICONS[selected.iconName], {
+                        className: "h-16 w-16 text-dme-orange",
+                        strokeWidth: 1.5,
+                      })}
                   </div>
                 )}
                 <button

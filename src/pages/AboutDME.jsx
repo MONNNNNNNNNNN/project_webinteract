@@ -4,6 +4,7 @@ import { ChevronDown, ExternalLink } from "lucide-react";
 import DmeFullLogo from "../components/DmeFullLogo.jsx";
 import FadeIn from "../components/FadeIn.jsx";
 import { LECTURERS } from "../lib/staffData.js";
+import { useContent } from "../lib/contentClient.js";
 
 const facts = [
   {
@@ -53,8 +54,25 @@ function AccordionSection({ title, isOpen, onToggle, children }) {
   );
 }
 
+// Storage shape -> the shape this page already renders. Module scope because
+// useContent takes it as an effect dependency.
+function mapStaffRow(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    title: row.title,
+    education: row.education,
+    specialty: row.specialty,
+    photo: row.photo_url || undefined,
+    profile: row.profile_url || null,
+    room: row.room || undefined,
+  };
+}
+
 export default function AboutDME() {
   const [openIndex, setOpenIndex] = useState(0);
+  // LECTURERS is both the seed for migration 0012 and the fallback here.
+  const lecturers = useContent("staff", LECTURERS, mapStaffRow);
 
   const sections = [...facts, { title: "Lecturer", isLecturer: true }];
 
@@ -82,9 +100,9 @@ export default function AboutDME() {
             >
               {s.isLecturer ? (
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  {LECTURERS.map((l) => (
+                  {lecturers.map((l) => (
                     <div
-                      key={l.name}
+                      key={l.id || l.name}
                       className="flex gap-3 rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900/40"
                     >
                       <img

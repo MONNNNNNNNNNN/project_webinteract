@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Brain, Clapperboard, Gamepad2, Code2, X, ChevronDown } from "lucide-react";
 import { STUDY_PLAN, ELECTIVE_COURSES, CATEGORIES, PROGRAM_TOTAL_CREDITS } from "../lib/curriculumData.js";
 import { COURSE_DESCRIPTIONS } from "../lib/courseDescriptions.js";
 import FadeIn from "../components/FadeIn.jsx";
+import { useContent } from "../lib/contentClient.js";
 
 const categoryColors = {
   AI: "bg-purple-500/10 text-purple-600 border-purple-500/40 dark:bg-purple-500/20 dark:text-purple-300",
@@ -59,25 +60,6 @@ const CREDIT_BREAKDOWN = [
   { label: "Free Elective", credits: 6, note: "Min. — any faculty" },
 ];
 
-// All courses grouped by full category name. Elective Engineering pulls the
-// real elective course pool (ELECTIVE_COURSES) instead of the STUDY_PLAN
-// placeholder "Elective Course" slot rows, since those don't name real courses.
-const ALL_COURSES_BY_CATEGORY = (() => {
-  const map = Object.fromEntries(CREDIT_BREAKDOWN.map((c) => [c.label, []]));
-  STUDY_PLAN.forEach((yearBlock) => {
-    yearBlock.semesters.forEach((sem) => {
-      sem.courses.forEach((c) => {
-        const cat = TYPE_TO_CATEGORY[c.type];
-        if (cat && cat !== "Elective Engineering") map[cat].push(c);
-      });
-    });
-  });
-  Object.values(ELECTIVE_COURSES).forEach((list) => {
-    list.forEach((c) => map["Elective Engineering"].push(c));
-  });
-  return map;
-})();
-
 function CourseCard({ course, onSelect }) {
   return (
     <button
@@ -98,8 +80,7 @@ function CourseCard({ course, onSelect }) {
   );
 }
 
-function CourseModal({ course, onClose }) {
-  const details = course && COURSE_DESCRIPTIONS[course.code];
+function CourseModal({ course, details, onClose }) {
   return (
     <AnimatePresence>
       {course && (
@@ -172,14 +153,132 @@ function CourseModal({ course, onClose }) {
   );
 }
 
+// The static modules are nested; the tables are flat. Flatten the static copies
+// once so both sources share one shape and everything below has a single path.
+const STATIC_STUDY_PLAN_ROWS = STUDY_PLAN.flatMap((y) =>
+  y.semesters.flatMap((s) =>
+    s.courses.map((c) => ({
+      year: y.year,
+      semesterName: s.name,
+      totalAccumulated: s.totalAccumulated ?? null,
+      code: c.code,
+      name: c.name,
+      credits: c.credits,
+      type: c.type,
+    }))
+  )
+);
+
+const STATIC_ELECTIVE_ROWS = Object.entries(ELECTIVE_COURSES).flatMap(([track, list]) =>
+  list.map((c) => ({ track, code: c.code, name: c.name, credits: c.credits }))
+);
+
+const STATIC_COURSE_ROWS = Object.entries(COURSE_DESCRIPTIONS).map(([code, d]) => ({
+  code,
+  descriptionEn: d.descriptionEn,
+  descriptionTh: d.descriptionTh,
+  prerequisites: d.prerequisites,
+}));
+
+// Storage shape -> the shape this page renders. Module scope: useContent takes
+// these as effect dependencies.
+function mapStudyPlanRow(r) {
+  return {
+    year: r.year,
+    semesterName: r.semester_name,
+    totalAccumulated: r.total_accumulated,
+    code: r.course_code,
+    name: r.course_name,
+    credits: r.credits,
+    type: r.course_type,
+  };
+}
+
+function mapElectiveRow(r) {
+  return { track: r.track, code: r.course_code, name: r.course_name, credits: r.credits };
+}
+
+function mapCourseRow(r) {
+  return {
+    code: r.code,
+    descriptionEn: r.description_en,
+    descriptionTh: r.description_th,
+    prerequisites: r.prerequisites,
+  };
+}
+
+// 'Semester 1' | 'Semester 2' | 'Summer'. Rows arrive already ordered by
+// sort_order; this only orders the semesters within a year.
+const SEMESTER_ORDER = ["Semester 1", "Semester 2", "Summer"];
+const semesterRank = (name) => (SEMESTER_ORDER.indexOf(name) + 1 || 99);
+
+/** Flat rows -> the nested year/semester/course shape the markup expects. */
+function reassembleStudyPlan(rows) {
+  const years = new Map();
+  rows.forEach((r) => {
+    if (!years.has(r.year)) years.set(r.year, new Map());
+    const semesters = years.get(r.year);
+    if (!semesters.has(r.semesterName)) {
+      semesters.set(r.semesterName, {
+        name: r.semesterName,
+        totalAccumulated: r.totalAccumulated,
+        courses: [],
+      });
+    }
+    semesters.get(r.semesterName).courses.push({
+      code: r.code,
+      name: r.name,
+      credits: r.credits,
+      type: r.type,
+    });
+  });
+
+  return [...years.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([year, semesters]) => ({
+      year,
+      semesters: [...semesters.values()].sort((a, b) => semesterRank(a.name) - semesterRank(b.name)),
+    }));
+}
+
+function groupElectives(rows) {
+  const byTrack = {};
+  rows.forEach((r) => {
+    if (!byTrack[r.track]) byTrack[r.track] = [];
+    byTrack[r.track].push({ code: r.code, name: r.name, credits: r.credits });
+  });
+  return byTrack;
+}
+
 // Per-year (non-cumulative) credits: each year's own load, not a running total.
-const YEAR_SUMMARIES = STUDY_PLAN.reduce((acc, yearBlock) => {
-  const cumulative = Math.max(0, ...yearBlock.semesters.map((s) => s.totalAccumulated || 0));
-  const prevCumulative = acc.length ? acc[acc.length - 1].cumulative : 0;
-  const courseCount = yearBlock.semesters.reduce((n, s) => n + s.courses.length, 0);
-  acc.push({ year: yearBlock.year, yearCredits: cumulative - prevCumulative, cumulative, courseCount });
-  return acc;
-}, []);
+function buildYearSummaries(plan) {
+  return plan.reduce((acc, yearBlock) => {
+    const cumulative = Math.max(0, ...yearBlock.semesters.map((s) => s.totalAccumulated || 0));
+    const prevCumulative = acc.length ? acc[acc.length - 1].cumulative : 0;
+    const courseCount = yearBlock.semesters.reduce((n, s) => n + s.courses.length, 0);
+    acc.push({ year: yearBlock.year, yearCredits: cumulative - prevCumulative, cumulative, courseCount });
+    return acc;
+  }, []);
+}
+
+// All courses grouped by full category name. Elective Engineering pulls the real
+// elective pool rather than the study plan's placeholder "Elective Course" slot
+// rows, since those name no actual course.
+function buildAllByCategory(plan, electives) {
+  const map = Object.fromEntries(CREDIT_BREAKDOWN.map((c) => [c.label, []]));
+  plan.forEach((yearBlock) =>
+    yearBlock.semesters.forEach((sem) =>
+      sem.courses.forEach((c) => {
+        const cat = TYPE_TO_CATEGORY[c.type];
+        if (cat && cat !== "Elective Engineering") map[cat].push(c);
+      })
+    )
+  );
+  Object.values(electives).forEach((list) =>
+    list.forEach((c) => map["Elective Engineering"].push(c))
+  );
+  return map;
+}
 
 export default function CurriculumRoadmap() {
   const [section, setSection] = useState("curriculum"); // "curriculum" | "course"
@@ -188,6 +287,31 @@ export default function CurriculumRoadmap() {
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [openYear, setOpenYear] = useState(null);
   const [openAllCoursesCategory, setOpenAllCoursesCategory] = useState(null);
+
+  const studyPlanRows = useContent("study_plan", STATIC_STUDY_PLAN_ROWS, mapStudyPlanRow);
+  const electiveRows = useContent("elective_courses", STATIC_ELECTIVE_ROWS, mapElectiveRow);
+  const courseRows = useContent("courses", STATIC_COURSE_ROWS, mapCourseRow);
+
+  const studyPlan = useMemo(() => reassembleStudyPlan(studyPlanRows), [studyPlanRows]);
+  const electiveCourses = useMemo(() => groupElectives(electiveRows), [electiveRows]);
+  const descriptions = useMemo(
+    () => Object.fromEntries(courseRows.map((c) => [c.code, c])),
+    [courseRows]
+  );
+  const yearSummaries = useMemo(() => buildYearSummaries(studyPlan), [studyPlan]);
+  const allByCategory = useMemo(
+    () => buildAllByCategory(studyPlan, electiveCourses),
+    [studyPlan, electiveCourses]
+  );
+  // CATEGORIES fixes the canonical order; anything an admin adds beyond it is
+  // appended rather than dropped.
+  const trackNames = useMemo(() => {
+    const present = Object.keys(electiveCourses);
+    return [
+      ...CATEGORIES.filter((c) => present.includes(c)),
+      ...present.filter((c) => !CATEGORIES.includes(c)),
+    ];
+  }, [electiveCourses]);
 
   function openCourse(course, categoryLabel) {
     setSelectedCourse({ ...course, categoryLabel: categoryLabel || TYPE_TO_CATEGORY[course.type] || null });
@@ -274,7 +398,7 @@ export default function CurriculumRoadmap() {
           <div>
             <h2 className="mb-3 text-lg font-bold text-slate-900 dark:text-white">Year by year</h2>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {YEAR_SUMMARIES.map((y, i) => (
+              {yearSummaries.map((y, i) => (
                 <FadeIn key={y.year} delay={0.05 * i}>
                   <motion.button
                     whileTap={{ scale: 0.97 }}
@@ -342,9 +466,9 @@ export default function CurriculumRoadmap() {
 
           {courseView === "plan" && (
             <div className="space-y-3">
-              {STUDY_PLAN.map((yearBlock, yi) => {
+              {studyPlan.map((yearBlock, yi) => {
                 const isOpen = openYear === yearBlock.year;
-                const summary = YEAR_SUMMARIES.find((y) => y.year === yearBlock.year);
+                const summary = yearSummaries.find((y) => y.year === yearBlock.year);
                 return (
                   <FadeIn
                     key={yearBlock.year}
@@ -358,7 +482,7 @@ export default function CurriculumRoadmap() {
                       <div className="flex items-center gap-3">
                         <h2 className="text-xl font-bold text-dme-orange">Year {yearBlock.year}</h2>
                         <span className="text-xs text-slate-500 dark:text-slate-400">
-                          {summary.yearCredits} credits · {summary.courseCount} courses
+                          {summary?.yearCredits} credits · {summary?.courseCount} courses
                         </span>
                       </div>
                       <motion.span animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
@@ -398,7 +522,7 @@ export default function CurriculumRoadmap() {
           {courseView === "electives" && (
             <>
               <div className="mb-6 flex flex-wrap gap-2">
-                {CATEGORIES.map((cat) => {
+                {trackNames.map((cat) => {
                   const Icon = categoryIcons[cat];
                   return (
                     <motion.button
@@ -418,7 +542,7 @@ export default function CurriculumRoadmap() {
                 })}
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {ELECTIVE_COURSES[activeCategory].map((course, i) => (
+                {(electiveCourses[activeCategory] || []).map((course, i) => (
                   <CourseCard
                     key={`${course.code}-${i}`}
                     course={course}
@@ -433,7 +557,7 @@ export default function CurriculumRoadmap() {
             <div className="space-y-3">
               {CREDIT_BREAKDOWN.map((cat, i) => {
                 const isOpen = openAllCoursesCategory === cat.label;
-                const courses = ALL_COURSES_BY_CATEGORY[cat.label];
+                const courses = allByCategory[cat.label] || [];
                 return (
                   <FadeIn
                     key={cat.label}
@@ -483,7 +607,11 @@ export default function CurriculumRoadmap() {
         </FadeIn>
       )}
 
-      <CourseModal course={selectedCourse} onClose={() => setSelectedCourse(null)} />
+      <CourseModal
+        course={selectedCourse}
+        details={selectedCourse ? descriptions[selectedCourse.code] : null}
+        onClose={() => setSelectedCourse(null)}
+      />
     </div>
   );
 }

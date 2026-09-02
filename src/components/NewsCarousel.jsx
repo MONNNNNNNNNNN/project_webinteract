@@ -14,7 +14,8 @@ export default function NewsCarousel({ items, intervalMs = 5000 }) {
     return () => clearInterval(id);
   }, [open, isDragging, items.length, intervalMs]);
 
-  const active = items[index];
+  // items can shrink under a stale index when an admin deletes an entry.
+  const active = items[Math.min(index, items.length - 1)];
   const goNext = () => setIndex((i) => (i + 1) % items.length);
   const goPrev = () => setIndex((i) => (i - 1 + items.length) % items.length);
 
@@ -78,7 +79,7 @@ export default function NewsCarousel({ items, intervalMs = 5000 }) {
           <div className="flex justify-center gap-1.5 pb-4">
             {items.map((item, i) => (
               <button
-                key={item.image}
+                key={item.id || item.image}
                 onClick={() => setIndex(i)}
                 aria-label={`Go to slide ${i + 1}`}
                 className={`h-1.5 rounded-full transition-all ${

@@ -2,17 +2,68 @@ import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { STUDENT_TYPES, FEE_BREAKDOWN, MEKONG_COUNTRIES, grandTotal, formatBaht } from "../lib/tuitionData.js";
 import FadeIn from "../components/FadeIn.jsx";
+import { useContent } from "../lib/contentClient.js";
+
+// The static FEE_BREAKDOWN is nested by student type and period; site_fee_rows
+// is flat. Flatten the static copy once so both sources share one shape and the
+// grouping below has a single code path.
+const STATIC_FEE_ROWS = STUDENT_TYPES.flatMap((s) =>
+  Object.entries(FEE_BREAKDOWN[s.id]).flatMap(([period, list]) =>
+    list.map((r) => ({
+      studentTypeId: s.id,
+      period,
+      item: r.item,
+      type: r.type,
+      amount: r.amount,
+      excludedFromTotal: Boolean(r.excludedFromTotal),
+    }))
+  )
+);
+
+// Storage shape -> the shape this page renders. Module scope: useContent takes
+// these as effect dependencies.
+function mapStudentType(row) {
+  return {
+    id: row.id,
+    label: row.label,
+    semesterFee: row.semester_fee,
+    hasLivingCost: row.has_living_cost,
+  };
+}
+
+function mapFeeRow(row) {
+  return {
+    id: row.id,
+    studentTypeId: row.student_type_id,
+    period: row.period,
+    item: row.item,
+    type: row.item_type,
+    amount: row.amount,
+    excludedFromTotal: row.excluded_from_total,
+  };
+}
 
 export default function TuitionFees() {
   const [statusId, setStatusId] = useState("thai");
   const [period, setPeriod] = useState("Per Semester");
 
-  const status = STUDENT_TYPES.find((s) => s.id === statusId);
-  const rows = FEE_BREAKDOWN[statusId][period];
-  const total = useMemo(() => grandTotal(statusId, period), [statusId, period]);
+  const studentTypes = useContent("student_types", STUDENT_TYPES, mapStudentType);
+  const feeRows = useContent("fee_rows", STATIC_FEE_ROWS, mapFeeRow);
+
+  // An admin can rename or remove the type this page opened on, so fall back to
+  // the first available rather than rendering undefined.
+  const status = studentTypes.find((s) => s.id === statusId) || studentTypes[0];
+
+  const rows = useMemo(
+    () => feeRows.filter((r) => r.studentTypeId === status?.id && r.period === period),
+    [feeRows, status, period]
+  );
+  const total = useMemo(() => grandTotal(rows, period), [rows, period]);
 
   const academicRows = rows.filter((r) => r.type === "Mandatory" || r.type === "One-time");
   const livingRows = rows.filter((r) => r.type === "Optional");
+
+  if (!status) return null;
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-12">
@@ -24,13 +75,13 @@ export default function TuitionFees() {
         </p>
 
         <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {STUDENT_TYPES.map((s) => (
+          {studentTypes.map((s) => (
             <motion.button
               key={s.id}
               whileTap={{ scale: 0.97 }}
               onClick={() => setStatusId(s.id)}
               className={`rounded-xl border p-4 text-left transition ${
-                statusId === s.id
+                status.id === s.id
                   ? "border-dme-orange bg-dme-orange/10"
                   : "border-slate-200 bg-white shadow-sm hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/40 dark:shadow-none dark:hover:border-slate-600"
               }`}
@@ -42,7 +93,7 @@ export default function TuitionFees() {
           ))}
         </div>
 
-        {statusId === "mekong" && (
+        {status.id === "mekong" && (
           <p className="mb-6 text-xs text-slate-500 dark:text-slate-400">
             Mekong Region rate applies to students from: {MEKONG_COUNTRIES.join(", ")}.
           </p>

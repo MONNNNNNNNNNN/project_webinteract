@@ -1,7 +1,10 @@
 import FadeIn from "../components/FadeIn.jsx";
 import NewsCarousel from "../components/NewsCarousel.jsx";
+import { useContent } from "../lib/contentClient.js";
 
-const newsItems = [
+// Seed for supabase/migrations/0011 and the runtime fallback when Supabase is
+// unreachable. Keep in sync with that migration if you edit it here.
+const STATIC_NEWS = [
   {
     tag: "Award",
     title: "DME Students Win Bronze Medal — Thailand Research Expo 2024",
@@ -36,7 +39,22 @@ const newsItems = [
   },
 ];
 
+// Storage shape -> the shape NewsCarousel already renders. Module scope because
+// useContent takes it as an effect dependency.
+function mapNewsRow(row) {
+  return {
+    id: row.id,
+    tag: row.tag,
+    title: row.title,
+    image: row.image_url || undefined,
+    real: row.is_real,
+    description: row.description,
+  };
+}
+
 export default function Home() {
+  const newsItems = useContent("news", STATIC_NEWS, mapNewsRow);
+
   return (
     <div>
       <section className="relative overflow-hidden">
@@ -56,7 +74,8 @@ export default function Home() {
       <section className="mx-auto max-w-6xl px-4 pb-16 sm:pb-20">
         <FadeIn>
           <h2 className="mb-4 text-center text-xl font-bold text-slate-900 dark:text-white">News & Activities</h2>
-          <NewsCarousel items={newsItems} />
+          {/* An admin can delete every row; the carousel assumes at least one. */}
+          {newsItems.length > 0 && <NewsCarousel items={newsItems} />}
         </FadeIn>
       </section>
     </div>
