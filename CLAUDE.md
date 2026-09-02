@@ -34,9 +34,10 @@ is the original proposal **minus** the removal below **plus** the addition below
   built directly in-app: `src/components/ThreeDViewer.jsx` (React Three Fiber),
   loading a `.glb` model from `public/3d/` with first-person walk controls
   (desktop: pointer-lock + WASD; touch: orbit/drag) rendered on the
-  `src/pages/ThreeDWorld.jsx` route. `docs/3d-integration-handoff.md` describes
-  the old iframe contract and is no longer accurate — the `public/cdlc-sim/`
-  iframe path isn't used. The three.js/`@react-three/*` deps are React-18-pinned
+  `src/pages/ThreeDWorld.jsx` route. The old iframe handoff doc
+  (`docs/3d-integration-handoff.md`) and the `public/cdlc-sim/` directory it
+  described are both deleted — that path is gone, not merely unused. The
+  three.js/`@react-three/*` deps are React-18-pinned
   (`@react-three/fiber@^8`, `@react-three/drei@^9`) since fiber v9 needs React 19.
 
 See `docs/demo-script.md` for how this all gets presented — it's a useful map of
@@ -46,14 +47,15 @@ build) and already has fallback plans baked in.
 ## Tech stack
 
 - **Frontend:** React 18 + Vite 5 + Tailwind CSS 3, React Router 6
-- **Backend:** Vercel Serverless Functions (Node.js) under `api/` — not built yet
+- **Backend:** Vercel Serverless Functions (Node.js) under `api/`
 - **Database:** Supabase / Postgres, migrations in `supabase/migrations/`
 - **Hosting:** Vercel (Hobby tier — see `vercel.json`)
 - **Version control:** GitHub
 
 Two free-tier constraints worth remembering (from the original proposal, section 7):
-Vercel Hobby functions have a 10-second execution timeout (keep chatbot responses
-short, use Haiku not a reasoning model), and Supabase free-tier projects pause
+Vercel Hobby functions have a 10-second execution timeout (which is why the
+chatbot answers by retrieval rather than by calling a model — see below), and
+Supabase free-tier projects pause
 after 7 days of inactivity (manual restart needed before a demo after a break).
 
 ## Folder structure
@@ -61,25 +63,47 @@ after 7 days of inactivity (manual restart needed before a demo after a break).
 ```
 api/                        Vercel serverless functions
   careers.js                 JSearch listings, cache-first (see Job caching below)
-  chat.js                    ChatWidget answers via Claude
+  chat.js                    ChatWidget answers via Claude, grounded in kb_chunks
   admin/                     login / logout / session / faqs CRUD
+  content/[type].js          Generic CRUD over admin-editable tables (see below)
   _lib/                      env.js (key flags), session.js (HMAC cookie),
-                             jobCache.js (Supabase job cache), mockData.js
+                             jobCache.js (Supabase job cache), mockData.js,
+                             knowledgeBase.js (chatbot retrieval)
+scripts/build-kb.js         Rebuilds the chatbot knowledge base from src/lib/
 src/
   pages/                    One file per route
     Admin/                  Admin routes (live — Supabase Auth + session cookie)
+      ContentManager.jsx      Generic table editor, driven by contentSchemas.js
+      contentSchemas.js        One schema entry per admin-editable domain
   components/               Navbar, Footer, ChatWidget, ComingSoon, etc.
-  lib/                      Static data modules (curriculumData.js, tuitionData.js)
-                             that the real-content pages import — no backend calls,
-                             plus careersCache.js (localStorage job cache)
-supabase/migrations/        SQL migrations: programs, courses, student_status,
-                             fee_detail, faqs, job_cache, job_fetch_budget
+  lib/                      Static data modules (curriculumData.js, tuitionData.js,
+                             staffData.js) that the real-content pages import as
+                             seed/fallback — see Admin-editable content below —
+                             plus careersCache.js (localStorage job cache) and
+                             contentClient.js (useContent() hook for those tables)
+supabase/
+  migrations/                0001-0015: programs, courses, student_status,
+                             fee_detail, faqs, job_cache, job_fetch_budget,
+                             kb_chunks, site_projects/news/staff/tuition/curriculum,
+                             search fixes + chat_misses (see Chatbot KB below)
+  APPLY_ALL.sql               Generated bundle of a migration range for pasting into
+                             the Supabase SQL Editor by hand. Regenerate by hand —
+                             nothing keeps it in sync with new migration files.
 docs/reference/             Extracted source data — read these instead of the PDFs
   curriculum-data.md         Full 4-year study plan + 4 elective-track course lists
   tuition-data.md            Full fee breakdown per student type / period
-public/cdlc-sim/            Unused — old iframe handoff plan, superseded (see above)
+docs/proposal/, docs/project-report/   Course deliverables (EN 842300 proposal
+                             slides, final report + Figma prototype assets)
 public/3d/                  .glb model assets for ThreeDViewer
 ```
+
+Everything else at repo root that isn't listed above or in `.gitignore`
+(`history-docs/`, `network-review/`, `output/`, `study/`, `web-review/`,
+`mindflux-*`, the `*.whl` files, the Kurose/Ross networking textbook PDF under
+`docs/`, `skills-lock.json`, `claude-code-skills-workflow-reference.md`) is
+scratch material from unrelated coursework sharing this working directory —
+not part of DME Explorer, untracked, and not something to fix, reference, or
+clean up unless asked.
 
 ## Data sourcing
 
@@ -103,8 +127,9 @@ no env vars needed.
 
 **Live but falls back to simulated data without a key:**
 - `CareerExplorer.jsx` — needs `JSEARCH_API_KEY`, else shows simulated listings
-- `ChatWidget.jsx` (floating component, not a route) — needs `ANTHROPIC_API_KEY`,
-  else answers from a small hardcoded FAQ (still DME-scoped, zero cost)
+- `ChatWidget.jsx` (floating component, not a route) — answers from `kb_chunks`
+  when Supabase is configured, else from six built-in facts. Needs no provider
+  key at all — see Chatbot knowledge base below
 
 **Live against Supabase:** `Admin/AdminLogin.jsx` + `Admin/AdminDashboard.jsx`
 authenticate through Supabase Auth and persist FAQs to Postgres. The demo
@@ -121,8 +146,13 @@ call, so listings are cached in two places rather than fetched per page view:
   refreshes build a larger pool than any single JSearch response. `job_fetch_meta`
   records the last live call per interest and enforces a 10-minute floor between
   them (a refresh inside that window is served from cache with an explanatory
-  `note`). Cached lists are served untouched for 6 hours. Rows unseen for 30 days
-  are pruned after a successful fetch. This layer is shared across all users —
+  `note`). Cached lists are served untouched for 24 hours — that TTL is derived
+  from the budget, not picked for freshness: `App.jsx` prefetches 5 buckets
+  ("All" + 4 interests), so one live window per bucket per day is 5 × 30 = 150
+  calls/month, which fits under `MONTHLY_LIVE_BUDGET` (170). A 6h TTL needed 600
+  and exhausted the cap around day 9 of every month, freezing the cache for the
+  rest of it. Change one of those numbers and you must change the other. Rows
+  unseen for 30 days are pruned after a successful fetch. This layer is shared across all users —
   serverless functions are stateless, so process memory would not help.
 - **Monthly ceiling** — `job_fetch_budget` plus the `consume_job_fetch_budget()`
   function cap live calls at `MONTHLY_LIVE_BUDGET` (170, under the BASIC plan's
@@ -141,8 +171,133 @@ The unfiltered "All" query is keyed under the sentinel `'all'`, not `''`, becaus
 PostgREST's `?interest=eq.` with no value is ambiguous. `jobCache.js` maps it back
 to `""` on the way out, so the sentinel never reaches the client.
 
+## Chatbot knowledge base (RAG)
+
+`api/chat.js` used to answer from ~15 lines of facts hardcoded into its system
+prompt. It now retrieves from `kb_chunks`, so it can answer about a specific
+course, lecturer, or fee row. Retrieval is Postgres full-text search — **no
+embeddings, no pgvector, no embedding provider.** The corpus is ~120 chunks of
+mostly exact-term queries, where FTS is competitive and costs nothing per query.
+
+- **Ingestion** — `node scripts/build-kb.js` reads the `src/lib/*.js` data
+  modules and upserts chunks keyed on a stable derived id (`course:EN 843 402`),
+  deleting any row whose id it no longer produces. Idempotent; `--dry-run` builds
+  and counts without touching the network. Needs `SUPABASE_SERVICE_ROLE_KEY`.
+  **Re-run it after editing any file in `src/lib/`** — nothing does this
+  automatically.
+- **Two matchers, because Thai and English cannot share one.** English uses
+  `to_tsvector('english', …)` + `ts_rank_cd` with normalization flag 32, which
+  bounds the score to 0..1. Thai uses `pg_trgm`, because Postgres ships no Thai
+  text-search config and Thai has no spaces between words, so `to_tsvector` would
+  collapse a whole phrase into one dead token. Specifically `word_similarity()`
+  / `<%`, not `similarity()` / `%`: the latter compares whole strings and
+  collapses toward zero as lengths diverge, so a short question would never clear
+  the threshold against a 400-character course description.
+- **Course codes bypass ranking.** The `english` tokenizer shreds `EN 843 402`
+  into `en`/`843`/`402`, which matches dozens of chunks and ranks the intended
+  course nowhere. `knowledgeBase.js` regexes the message for a code and fetches
+  that chunk by exact id, placing it at rank 1 regardless of what the ranker said.
+- **`faqs` is unioned in at query time, not copied.** The admin dashboard edits
+  those rows, so a copy would go stale on the first correction. This way an admin
+  edit changes the chatbot immediately — no re-ingest, no redeploy.
+- **Page copy is duplicated into `scripts/build-kb.js`.** The `facts`, `channels`,
+  and curriculum-overview prose live in JSX, which a plain Node script cannot
+  import. If that page copy changes, the script must be updated by hand; nothing
+  catches the drift.
+- **No language model. Retrieval only.** `api/chat.js` returns the best-matching
+  chunk's text verbatim; there is no generation step. That means it cannot invent
+  a fee, a course code, or a lecturer, and it needs no API key, no budget cap, and
+  no timeout juggling — measured 0.1–1.7s per answer. The cost is real: it cannot
+  merge two chunks, cannot answer "compare the Mekong and international rates",
+  and reads like documentation rather than conversation.
+- **Confidence floor.** `MIN_SCORE = 0.12`. Below it, `search_kb` matched on an
+  incidental shared word rather than the subject, so the reply is "I don't have
+  that" plus the official contacts — better than confidently pasting an unrelated
+  course description. An exact course-code hit is looked up rather than ranked and
+  carries no score, so it is treated as fully confident.
+- **Answers follow the question's language.** Any Thai character in the message
+  selects `content_th` when the chunk has one.
+- **`0015` fixed three things a real first run against student questions
+  exposed.** `search_kb` ANDed every query term, so natural-language questions
+  (multiple words, one of which doesn't match anything) returned nothing —
+  fixed to OR terms and rank instead. English had no typo tolerance (only Thai
+  had `pg_trgm`); `0015` adds a trigram index on `content_en` too, so "tuiton" /
+  "leturer" now match. And a `chat_misses` table now logs every question that
+  scored below `MIN_SCORE` with no admin-facing read policy — only the service
+  role can read or write it — so unanswered questions are visible as a coverage
+  signal instead of silently vanishing. It also seeds FAQ rows that closed the
+  biggest gaps that first run found.
+
+If a model is added later it belongs *in front of* this, not instead of it:
+retrieval already works, and this stays as the fallback for when the model is
+unreachable. Fallback ladder today: no Supabase → six built-in facts, flagged
+`simulated: true`; nothing matched above the floor → an explicit "I don't know"
+plus contacts. A user never sees a 500.
+
+## Admin-editable content
+
+Content that used to be a hardcoded array in a page is now a Supabase table the
+admin dashboard can edit. Migrated so far: Student Projects and the Home news
+carousel (`0011`), the lecturer directory (`0012`), tuition (`0013`), and the
+curriculum — courses, study plan, elective tracks (`0014`). That is every
+content domain; `src/lib/*.js` now serves only as seed and fallback.
+
+`grandTotal()` in `src/lib/tuitionData.js` now takes `(rows, period)` rather than
+`(statusId, period)`, so one function serves both the static `FEE_BREAKDOWN` and
+rows from `site_fee_rows`. It reads either spelling of the exclusion flag.
+Amounts are validated as non-negative integers in three places — the CHECK
+constraint in `0013`, `pickColumns()` in the content endpoint, and the form —
+because these are figures a prospective student budgets against.
+
+- **The static array is still the source of truth for the seed and the runtime
+  fallback.** `STATIC_PROJECTS` in `StudentProjects.jsx` and `STATIC_NEWS` in
+  `Home.jsx` are still imported and still render first paint. `useContent()`
+  (`src/lib/contentClient.js`) swaps in database rows only when the response is
+  authoritative. Supabase free-tier projects pause after 7 days idle, so a paused
+  project degrades to the site as built rather than to a blank page. Do not delete
+  those arrays; if you edit one, update migration `0011` to match.
+- **`simulated: true` means "not authoritative".** The client keeps its fallback.
+  An authoritative empty list (`simulated: false, items: []`) *is* honoured — an
+  admin who deleted every row meant it.
+- **One endpoint, not one per table.** `api/content/[type].js` maps `type` through
+  a whitelist to a table name and an allowed-column list. The path segment is
+  never interpolated into a query, and unknown types are rejected before a request
+  is built. Adding a domain is an entry there plus a schema in
+  `src/pages/Admin/contentSchemas.js` — the admin UI renders itself from that.
+- **Icons are names, not components.** A lucide component cannot round-trip
+  through Postgres, so rows carry `icon_name` and `StudentProjects.jsx` resolves it
+  through an explicit map. Unknown names render no icon rather than crashing.
+- **Images are URL strings.** Vercel's runtime filesystem is read-only; there is no
+  upload path.
+- **The primary-key column is per-type.** Most tables key on a generated uuid
+  `id`; `site_courses` keys on `code` and `site_student_types` on a text `id`.
+  `pkOf(spec)` in the endpoint and `schema.idField` in the admin UI carry that —
+  hardcoding `id` makes update and delete 404 or error on the odd ones out. The
+  PK is stripped from every PATCH: it identifies the row, it is not a column to
+  edit, and renaming a student type would orphan its fee rows.
+- **`site_study_plan` and `site_elective_courses` denormalize name and credits.**
+  They cannot join to `site_courses` for them: the study plan has 7 placeholder
+  rows (`EN XX XXXX` four times with different credits, `XX XXXX`, `IC 011 10X`)
+  and the elective tracks have 4 rows coded `EN [unclear]`. Those codes repeat,
+  so they cannot be primary keys, and none have descriptions. The `[unclear]`
+  markers mean "verify against the official curriculum before publishing" — they
+  are load-bearing, not dirt.
+- **Simulated stores hang off `globalThis`, not module scope.** `vite.config.js`
+  re-imports handlers with a cache-busting `?t=` on every request, so a module-level
+  `const` resets between the POST and the GET that reads it back.
+  `api/admin/faqs.js` still has that quirk — under `vite dev` it hands out id
+  `faq-7` on every create.
+
+`vite.config.js` also resolves Vercel-style dynamic routes (`api/content/[type].js`)
+in dev. Without that, the exact-file lookup misses, the middleware falls through,
+and the SPA history fallback answers `/api/content/projects` with `index.html` —
+a silent failure that looks like a broken fetch.
+
 ## Environment variables
 
-See `.env.example`. Nothing is required for local dev — every stub page renders
-without any env vars set. Live JSearch integration, live chatbot logic, Supabase
-auth, and 3D asset loading are explicitly follow-up tasks, not part of this pass.
+See `.env.example`. Nothing is required for local dev — every page renders
+without any env vars set, falling back to simulated listings / the hardcoded FAQ
+where a provider key is missing. `JSEARCH_API_KEY` and the Supabase trio are
+wired and live when present. The chatbot needs no provider key — it answers by
+retrieval, not generation. Note `hasSupabaseAdmin` requires `SUPABASE_ANON_KEY` as well as
+the service-role key, because the cache reads go through the anon role.
