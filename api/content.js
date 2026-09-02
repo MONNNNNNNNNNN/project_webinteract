@@ -18,8 +18,8 @@
 // rejected before a request is built.
 
 import { randomUUID } from "node:crypto";
-import { readSession, sessionsDisabled, SESSIONS_DISABLED_MESSAGE } from "../_lib/session.js";
-import { SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, hasSupabase, hasSupabaseAdmin } from "../_lib/env.js";
+import { readSession, sessionsDisabled, SESSIONS_DISABLED_MESSAGE } from "./_lib/session.js";
+import { SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, hasSupabase, hasSupabaseAdmin } from "./_lib/env.js";
 
 const CONTENT_TYPES = {
   projects: {
