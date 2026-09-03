@@ -16,7 +16,7 @@
 import { hasSupabase, hasGeminiKey } from "./_lib/env.js";
 import { FAQ_FACTS, FALLBACK_ANSWER } from "./_lib/mockData.js";
 import { searchKnowledge, logUnansweredQuestion, formatContext } from "./_lib/knowledgeBase.js";
-import { generateAnswer } from "./_lib/gemini.js";
+import { generateAnswer, rewriteQuery } from "./_lib/gemini.js";
 
 const MAX_CHUNKS = 4;
 
@@ -216,19 +216,42 @@ export default async function handler(req, res) {
 
   // searchKnowledge swallows its own failures and returns [], so a sleeping
   // Supabase costs the user a fallback answer, not an error page.
-  const chunks = await searchKnowledge(message, MAX_CHUNKS);
-
   const thai = THAI_CHARS.test(message);
-  const tokens = thai ? [] : significantTokens(message);
-  const confident = rerank(
-    chunks.filter((c) => {
-      const score = confidenceOf(c);
-      if (score < MIN_SCORE) return false;
-      if (score >= STRONG_SCORE || thai) return true;
-      return sharesSubject(c, tokens);
-    }),
-    tokens
-  );
+
+  const keep = (list, toks) =>
+    rerank(
+      list.filter((c) => {
+        const score = confidenceOf(c);
+        if (score < MIN_SCORE) return false;
+        if (score >= STRONG_SCORE || thai) return true;
+        return sharesSubject(c, toks);
+      }),
+      toks
+    );
+
+  let chunks = await searchKnowledge(message, MAX_CHUNKS);
+  let confident = keep(chunks, thai ? [] : significantTokens(message));
+
+  // Nothing matched. Before giving up, let the model translate the question into
+  // the vocabulary the documents actually use — "is it hard to get in" finds
+  // nothing, "admission requirements TCAS" finds the FAQ. The model supplies
+  // search terms only; the documents still decide what is true, so a rewrite
+  // that retrieves nothing still yields an honest "I don't know".
+  if (!confident.length && hasGeminiKey) {
+    const left = TOTAL_BUDGET_MS - (Date.now() - startedAt);
+    if (left >= MIN_MODEL_MS * 2) {
+      const rewritten = await rewriteQuery(message, Math.min(left - MIN_MODEL_MS, 3000));
+      if (rewritten) {
+        console.log(`[chat] retry with rewritten query: "${rewritten}"`);
+        const retried = await searchKnowledge(rewritten, MAX_CHUNKS);
+        const kept = keep(retried, significantTokens(rewritten));
+        if (kept.length) {
+          chunks = retried;
+          confident = kept;
+        }
+      }
+    }
+  }
 
   if (!confident.length) {
     // Fire and forget: a failed log must not cost the user their reply, and the
@@ -250,8 +273,8 @@ export default async function handler(req, res) {
   if (hasGeminiKey) {
     const remaining = TOTAL_BUDGET_MS - (Date.now() - startedAt);
     if (remaining >= MIN_MODEL_MS) {
-      const { context } = formatContext(confident);
-      const generated = await generateAnswer(context, message, remaining);
+      const { context } = formatContext(confident, { preferThai: thai });
+      const generated = await generateAnswer(context, message, remaining, thai ? "Thai" : "English");
       if (generated) {
         res.status(200).json({ reply: generated, simulated: false, generated: true, sources });
         return;

@@ -25,16 +25,72 @@ You will be given reference documents. They are your only source of information.
 Rules:
 - Answer using only what appears in the documents. If they do not cover the question, say so plainly and point the user to the International Affairs Division on +66 (0) 4320 2059 or enforeign@kku.ac.th.
 - Never state a course code, fee amount, date, staff name or figure that is not in the documents. Do not round, convert or estimate numbers — repeat them exactly as written.
-- Reply in the same language as the question. A question in Thai gets a Thai answer.
+- Answer in the language named in the ANSWER LANGUAGE line of the user turn. Ignore the language of the documents themselves — they are often Thai even when the question is not.
 - Two to four sentences. No preamble, no bullet lists, no markdown.
 - Write as a helpful person would speak, not as a document extract.`;
 
-function buildUserTurn(context, question) {
+function buildUserTurn(context, question, language) {
+  // Stated rather than inferred. Asked "How much does a Cambodian student pay?"
+  // in English against mostly-Thai retrieved text, the model answered in Thai.
   return `<reference_documents>
 ${context}
 </reference_documents>
 
+ANSWER LANGUAGE: ${language}
+
 Question: ${question}`;
+}
+
+const REWRITE_PROMPT = `You turn a student's question into search keywords for a Thai university programme's knowledge base.
+
+Output ONLY the keywords, space separated, no punctuation, no explanation, at most 8 words.
+
+Use the vocabulary a curriculum document would use, not the student's casual phrasing:
+- "is it hard to get in" -> admission requirements TCAS quota entry
+- "what do I need to bring" -> laptop software equipment CDLC
+- "can I work abroad" -> cooperative education internship placement
+- "who teaches AI" -> lecturer specialty artificial intelligence machine learning
+
+If the question is not about the programme at all, output exactly: NONE`;
+
+/**
+ * Turn a question that retrieved nothing into better search terms.
+ *
+ * This is the safe way to use a model when the knowledge base comes up empty.
+ * The alternative — letting it answer from its own training — would have it
+ * inventing KKU course codes and fees it has never seen. Here it only supplies
+ * vocabulary; the retrieved documents still decide what is true, and if the
+ * second search also finds nothing the user still gets an honest "I don't know".
+ *
+ * Returns null when there is nothing useful to retry with.
+ */
+export async function rewriteQuery(question, timeoutMs) {
+  if (!GEMINI_API_KEY) return null;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(`${ENDPOINT}/${GEMINI_MODEL}:generateContent`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-goog-api-key": GEMINI_API_KEY },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: REWRITE_PROMPT }] },
+        contents: [{ role: "user", parts: [{ text: question }] }],
+        generationConfig: { temperature: 0, maxOutputTokens: 200 },
+      }),
+      signal: controller.signal,
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const text = (data.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") || "").trim();
+    if (!text || text.toUpperCase().startsWith("NONE")) return null;
+    // Guard against the model ignoring the format and returning a sentence.
+    return text.split(/\s+/).slice(0, 8).join(" ");
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /**
@@ -44,7 +100,7 @@ Question: ${question}`;
  * every failure here has a working answer waiting behind it, so escalating
  * would trade a slightly worse reply for no reply at all.
  */
-export async function generateAnswer(context, question, timeoutMs) {
+export async function generateAnswer(context, question, timeoutMs, language = "English") {
   if (!GEMINI_API_KEY) return null;
 
   const controller = new AbortController();
@@ -61,7 +117,7 @@ export async function generateAnswer(context, question, timeoutMs) {
       },
       body: JSON.stringify({
         system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
-        contents: [{ role: "user", parts: [{ text: buildUserTurn(context, question) }] }],
+        contents: [{ role: "user", parts: [{ text: buildUserTurn(context, question, language) }] }],
         generationConfig: {
           // Low but not zero: the task is rephrasing supplied text, not
           // invention, and determinism is worth more than variety here.

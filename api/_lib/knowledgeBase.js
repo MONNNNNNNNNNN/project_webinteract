@@ -157,10 +157,23 @@ export async function logUnansweredQuestion(message) {
   }
 }
 
-/** Chunks as a labelled context block for the model, plus the titles used. */
-export function formatContext(chunks) {
+// A course chunk carries a full English description and a full Thai one. Sending
+// both sides of four of them was pushing a single request past 9s against
+// Vercel's 10s kill, so the context is trimmed to the side that matches the
+// question and each document is capped.
+const MAX_DOC_CHARS = 1200;
+
+/**
+ * Chunks as a labelled context block for the model, plus the titles used.
+ *
+ * `preferThai` selects which side of a bilingual chunk to send. The other side
+ * is not a translation the model needs — it is the same fact again, at double
+ * the token cost and roughly double the latency.
+ */
+export function formatContext(chunks, { preferThai = false } = {}) {
   const blocks = chunks.map((c) => {
-    const body = [c.content_en, c.content_th].filter(Boolean).join("\n");
+    const primary = preferThai ? c.content_th : c.content_en;
+    const body = (primary || c.content_en || c.content_th || "").slice(0, MAX_DOC_CHARS);
     return `<document source="${c.source}" title="${c.title}">\n${body}\n</document>`;
   });
   return {
