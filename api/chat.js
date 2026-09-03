@@ -232,20 +232,31 @@ export default async function handler(req, res) {
   let chunks = await searchKnowledge(message, MAX_CHUNKS);
   let confident = keep(chunks, thai ? [] : significantTokens(message));
 
-  // Nothing matched. Before giving up, let the model translate the question into
-  // the vocabulary the documents actually use — "is it hard to get in" finds
-  // nothing, "admission requirements TCAS" finds the FAQ. The model supplies
-  // search terms only; the documents still decide what is true, so a rewrite
-  // that retrieves nothing still yields an honest "I don't know".
-  if (!confident.length && hasGeminiKey) {
+  // Retry when the search was weak, not only when it was empty.
+  //
+  // Triggering on emptiness alone missed the more common failure: a question
+  // that matches something badly. "How do I get into this program?" ranked
+  // Fundamentals of Computer Programming first — "program" and "programming"
+  // share a stem — so the retry never fired and the model was handed the wrong
+  // documents. Anything below STRONG_SCORE is a guess worth a second attempt.
+  //
+  // The model only supplies vocabulary; the documents still decide what is true.
+  // The rewrite is kept only if it actually scores better, so a bad rewrite
+  // costs latency rather than accuracy, and one that finds nothing still leaves
+  // an honest "I don't know".
+  const topScore = confident.length ? confidenceOf(confident[0]) : 0;
+  if (topScore < STRONG_SCORE && hasGeminiKey) {
     const left = TOTAL_BUDGET_MS - (Date.now() - startedAt);
     if (left >= MIN_MODEL_MS * 2) {
       const rewritten = await rewriteQuery(message, Math.min(left - MIN_MODEL_MS, 3000));
       if (rewritten) {
-        console.log(`[chat] retry with rewritten query: "${rewritten}"`);
         const retried = await searchKnowledge(rewritten, MAX_CHUNKS);
         const kept = keep(retried, significantTokens(rewritten));
-        if (kept.length) {
+        const retryScore = kept.length ? confidenceOf(kept[0]) : 0;
+        console.log(
+          `[chat] rewrite "${rewritten}" scored ${retryScore.toFixed(3)} vs ${topScore.toFixed(3)}`
+        );
+        if (retryScore > topScore) {
           chunks = retried;
           confident = kept;
         }
