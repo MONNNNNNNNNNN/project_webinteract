@@ -1,25 +1,32 @@
-// DME Explorer chatbot — retrieval only, no language model.
+// DME Explorer chatbot — retrieval first, generation optional.
 //
-// Answers are the text of the best-matching knowledge-base chunk, returned
-// verbatim. There is no generation step, so there is nothing that can invent a
-// fee, a course code, or a lecturer's name: every sentence a user sees was
-// written into src/lib/*.js and ingested by scripts/build-kb.js.
+// Retrieval decides *what* is true: api/_lib/knowledgeBase.js finds the relevant
+// chunks and this file filters them by confidence. Only then, and only if
+// GEMINI_API_KEY is set, is a model asked to phrase them.
 //
-// The trade is real and worth stating. This cannot merge two chunks, cannot
-// answer "compare the Mekong and international rates", and reads like
-// documentation rather than conversation. In exchange it costs nothing per
-// query, needs no API key, cannot hallucinate, and answers in about the time one
-// Postgres query takes. For 119 curated factual chunks that is the right trade.
+// The model never answers from its own knowledge. It is handed the retrieved
+// text and told to decline anything the text does not cover, so it can rephrase
+// a fee but cannot invent one.
 //
-// If a language model is added later it belongs in front of this, not instead of
-// it: retrieval already works, and this stays as the fallback for when the model
-// is unreachable or out of budget.
+// Without a key — or when Gemini is slow, rate-limited, or returns nothing — the
+// chunk is served verbatim. That is a complete answer, just a less conversational
+// one, and it costs nothing per query and cannot hallucinate at all. Every path
+// out of this handler is a real answer; the model only changes how it reads.
 
-import { hasSupabase } from "./_lib/env.js";
+import { hasSupabase, hasGeminiKey } from "./_lib/env.js";
 import { FAQ_FACTS, FALLBACK_ANSWER } from "./_lib/mockData.js";
-import { searchKnowledge, logUnansweredQuestion } from "./_lib/knowledgeBase.js";
+import { searchKnowledge, logUnansweredQuestion, formatContext } from "./_lib/knowledgeBase.js";
+import { generateAnswer } from "./_lib/gemini.js";
 
 const MAX_CHUNKS = 4;
+
+// Whole-request budget against Vercel Hobby's 10s hard kill. Retrieval spends
+// what it needs first and the model gets the remainder, so a slow database
+// costs answer style rather than the whole response.
+const TOTAL_BUDGET_MS = 8500;
+// Below this there is not enough left for a useful completion, so skip the call
+// rather than start one that will be aborted mid-stream.
+const MIN_MODEL_MS = 2000;
 
 // Below this, search_kb matched only incidentally. Saying "I don't know" beats
 // confidently pasting an unrelated course description.
@@ -185,12 +192,15 @@ export default async function handler(req, res) {
     return;
   }
 
+  const startedAt = Date.now();
+
   // Greetings resolve before retrieval — there is nothing to retrieve, and a
   // refusal here reads as a broken bot rather than a scoped one.
   if (isGreeting(message)) {
     res.status(200).json({
       reply: THAI_CHARS.test(message) ? GREETING_REPLY_TH : GREETING_REPLY_EN,
       simulated: false,
+      generated: false,
       sources: [],
     });
     return;
@@ -200,7 +210,7 @@ export default async function handler(req, res) {
   // refusing everything, and flag it so the UI can badge the answer.
   if (!hasSupabase) {
     console.warn("[chat] Supabase not configured — answering from built-in facts");
-    res.status(200).json({ reply: faqReply(message), simulated: true, sources: [] });
+    res.status(200).json({ reply: faqReply(message), simulated: true, generated: false, sources: [] });
     return;
   }
 
@@ -227,14 +237,32 @@ export default async function handler(req, res) {
     res.status(200).json({
       reply: noMatchReply(chunks.map((c) => c.title).slice(0, 3), message),
       simulated: false,
+      generated: false,
       sources: [],
     });
     return;
   }
 
+  const sources = confident.map((c) => c.title);
+
+  // Generation is a bonus layer. Everything below this point already has a
+  // complete answer in hand; Gemini only makes it read better.
+  if (hasGeminiKey) {
+    const remaining = TOTAL_BUDGET_MS - (Date.now() - startedAt);
+    if (remaining >= MIN_MODEL_MS) {
+      const { context } = formatContext(confident);
+      const generated = await generateAnswer(context, message, remaining);
+      if (generated) {
+        res.status(200).json({ reply: generated, simulated: false, generated: true, sources });
+        return;
+      }
+    }
+  }
+
   res.status(200).json({
     reply: buildReply(confident, message),
     simulated: false,
-    sources: confident.map((c) => c.title),
+    generated: false,
+    sources,
   });
 }

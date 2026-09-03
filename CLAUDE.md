@@ -204,7 +204,17 @@ mostly exact-term queries, where FTS is competitive and costs nothing per query.
   and curriculum-overview prose live in JSX, which a plain Node script cannot
   import. If that page copy changes, the script must be updated by hand; nothing
   catches the drift.
-- **No language model. Retrieval only.** `api/chat.js` returns the best-matching
+- **Generation is optional and sits in front of retrieval, never instead of it.**
+  With `GEMINI_API_KEY` set, the retrieved chunks are handed to Gemini
+  (`gemini-3.5-flash-lite` by default, free tier) to be phrased as prose. The
+  model is never asked what it knows about DME — it gets the text and is told to
+  decline anything the text does not cover, so it can rephrase a fee but cannot
+  invent one. Without a key, or when Gemini is slow, rate-limited (429) or
+  returns an empty candidate, the chunk is served verbatim and the response
+  carries `generated: false`. Every path out of `api/chat.js` is a real answer;
+  the model only changes how it reads. Budget is 8.5s total against Vercel's 10s
+  kill, retrieval first, model gets the remainder, skipped below 2s left.
+- **Retrieval alone still works.** `api/chat.js` returns the best-matching
   chunk's text verbatim; there is no generation step. That means it cannot invent
   a fee, a course code, or a lecturer, and it needs no API key, no budget cap, and
   no timeout juggling — measured 0.1–1.7s per answer. The cost is real: it cannot

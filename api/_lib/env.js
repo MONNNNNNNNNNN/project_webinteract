@@ -1,4 +1,10 @@
 export const JSEARCH_API_KEY = process.env.JSEARCH_API_KEY || "";
+// Optional. Without it the chatbot still answers, just verbatim from the
+// knowledge base instead of in prose — see api/_lib/gemini.js.
+export const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
+// Overridable because model names churn. gemini-3.5-flash-lite is the fastest
+// and cheapest with a free tier; confirm current availability in AI Studio.
+export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash-lite";
 export const SUPABASE_URL = process.env.SUPABASE_URL || "";
 export const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || "";
 // Server-side only — bypasses Row Level Security, used for writes from
@@ -17,6 +23,7 @@ export const ADMIN_DEMO_EMAIL = process.env.ADMIN_DEMO_EMAIL || "admin@dme.kku.a
 export const ADMIN_DEMO_PASSWORD = process.env.ADMIN_DEMO_PASSWORD || "demo1234";
 
 export const hasJSearchKey = Boolean(JSEARCH_API_KEY);
+export const hasGeminiKey = Boolean(GEMINI_API_KEY);
 export const hasSupabase = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 // Reads in jobCache.js / admin/faqs.js go through the anon role and writes
 // through the service role, so both keys are required — with the anon key
