@@ -1,19 +1,29 @@
 import { Landmark, Mail, MapPin, Phone, Link2, Navigation } from "lucide-react";
 import FadeIn from "../components/FadeIn.jsx";
 
-// Phiawijit Building, Faculty of Engineering, KKU — the CDLC is on floor 2.
-// Taken from the !3d/!4d pair in the resolved maps.app.goo.gl link, which is the
-// marker position rather than the viewport centre the /@lat,lng segment gives.
-const CDLC = { lat: 16.4722497, lng: 102.8235039 };
+// Copied from Google Maps' own Share -> Embed a map. The opaque `pb` string
+// carries the place ID (0x31228a8be5184eb5:0x7316d55af70bec92), which is why the
+// pin is labelled with the building.
+//
+// The obvious alternative, ?q=lat,lng&output=embed, needs no place ID but makes
+// Google reverse-geocode the point — and it resolved to "Lomalan Coffee", the
+// nearest business, not the faculty building. Coordinates identify a spot; only
+// the place ID identifies the place.
+//
+// Neither form needs an API key. The Maps Embed API does, and is not used here.
+const MAP_EMBED =
+  "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d495.3344153240752!2d102.82312442027947!3d16.472300533294014!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31228a8be5184eb5%3A0x7316d55af70bec92!2z4LiV4Li24LiB4LmA4Lie4Li14Lii4Lij4Lin4Li04LiI4Li04LiV4LijIOC4hOC4k-C4sOC4p-C4tOC4qOC4p-C4geC4o-C4o-C4oeC4qOC4suC4quC4leC4o-C5jCDguKHguKvguLLguKfguLTguJfguKLguLLguKXguLHguKLguILguK3guJnguYHguIHguYjguJk!5e1!3m2!1sen!2sth!4v1788425549528!5m2!1sen!2sth";
 
-// The keyless embed. Google's Maps Embed API needs a billing-enabled key; this
-// older ?output=embed form does not, which keeps the page on the free tier.
-const MAP_EMBED = `https://maps.google.com/maps?q=${CDLC.lat},${CDLC.lng}&z=17&hl=en&output=embed`;
-
-// Omitting `origin` makes Google route from wherever the user is — which is the
-// point of the button. Their location is resolved by Google on their own device;
-// nothing about it reaches this site.
-const MAP_DIRECTIONS = `https://www.google.com/maps/dir/?api=1&destination=${CDLC.lat},${CDLC.lng}`;
+// Same lesson applies to the directions link: a bare lat,lng destination gets
+// reverse-geocoded and shown to the user as the wrong business name. Naming the
+// place makes Google resolve it to the building itself.
+//
+// `origin` is deliberately omitted so Google routes from wherever the user is.
+// Their location is resolved on their own device; none of it reaches this site.
+const MAP_DESTINATION = "ตึกเพียรวิจิตร คณะวิศวกรรมศาสตร์ มหาวิทยาลัยขอนแก่น";
+const MAP_DIRECTIONS = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
+  MAP_DESTINATION
+)}`;
 
 // The place page, for anyone who wants photos and opening hours rather than a route.
 const MAP_PLACE = "https://maps.app.goo.gl/wcvcusCcbYPBwi28A";
@@ -94,7 +104,7 @@ export default function Contact() {
             /* Third-party frame below the fold on most screens — no reason to
                block first paint on it. */
             loading="lazy"
-            referrerPolicy="no-referrer-when-downgrade"
+            referrerPolicy="strict-origin-when-cross-origin"
             allowFullScreen
           />
 
