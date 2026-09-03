@@ -282,6 +282,18 @@ because these are figures a prospective student budgets against.
   so they cannot be primary keys, and none have descriptions. The `[unclear]`
   markers mean "verify against the official curriculum before publishing" — they
   are load-bearing, not dirt.
+- **Seed content with `node scripts/seed-content.js --apply`, not by pasting the
+  migration SQL.** Pasting `0011`-`0014` into the Supabase SQL editor mangled
+  every non-ASCII character: UTF-8 was decoded as CP1252 and re-encoded, so `—`
+  became `â€”` and all 75 Thai course descriptions were corrupted beyond a clean
+  round-trip (Thai bytes hit CP1252's undefined slots, so the mangling is lossy).
+  93 rows were affected. `kb_chunks` came through clean because `build-kb.js`
+  writes it over PostgREST from Node — which is exactly what `seed-content.js`
+  now does for the content tables. The migrations remain the schema source of
+  truth; treat their INSERTs as documentation.
+  It is destructive for uuid-keyed tables (staff, fee rows, study plan, elective
+  tracks are emptied and rewritten, losing admin edits); `site_courses` and
+  `site_student_types` upsert in place.
 - **Simulated stores hang off `globalThis`, not module scope.** `vite.config.js`
   re-imports handlers with a cache-busting `?t=` on every request, so a module-level
   `const` resets between the POST and the GET that reads it back.
