@@ -1,0 +1,224 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:"Plus Jakarta Sans",system-ui,sans-serif; background:#fff; width:1740px; }
+  .wrap { padding:34px 40px 30px; }
+  h1 { font-size:26px; font-weight:800; color:#0f1729; letter-spacing:-.4px; }
+  .sub { font-size:13.5px; color:#64748b; margin-top:5px; }
+  .rule { font-size:12.5px; color:#f97316; font-weight:700; margin-top:9px; letter-spacing:.2px; }
+  svg { display:block; margin-top:14px; }
+  .lbl { font:700 11px "Plus Jakarta Sans"; fill:#94a3b8; letter-spacing:1.3px; }
+  .box-t { font:700 14px "Plus Jakarta Sans"; fill:#0f1729; }
+  .box-s { font:500 11.5px "Plus Jakarta Sans"; fill:#64748b; }
+  .mono { font:500 12px ui-monospace,"SF Mono",Menlo,monospace; fill:#0f1729; }
+  .mono-s { font:400 11px ui-monospace,"SF Mono",Menlo,monospace; fill:#64748b; }
+  .edge { font:600 10.5px "Plus Jakarta Sans"; fill:#64748b; }
+  .edge-hi { font:700 10.5px "Plus Jakarta Sans"; fill:#f97316; }
+  .note { font:500 11px "Plus Jakarta Sans"; fill:#475569; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>DME Explorer — system architecture</h1>
+  <div class="sub">React 18 + Vite SPA · Vercel serverless functions · Supabase Postgres · dmeexplorer.vercel.app</div>
+  <div class="rule">The browser never talks to Supabase directly. Every request goes through a function we control.</div>
+
+<svg width="1660" height="980" viewBox="0 0 1660 980" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="a" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+      <path d="M0,0 L9,4.5 L0,9 z" fill="#94a3b8"/>
+    </marker>
+    <marker id="ao" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+      <path d="M0,0 L9,4.5 L0,9 z" fill="#f97316"/>
+    </marker>
+    <marker id="ag" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+      <path d="M0,0 L9,4.5 L0,9 z" fill="#10b981"/>
+    </marker>
+  </defs>
+
+  <!-- ================= BROWSER ================= -->
+  <rect x="20" y="24" width="1080" height="158" rx="12" fill="#f8fafc" stroke="#e2e8f0"/>
+  <text x="40" y="48" class="lbl">BROWSER — React SPA</text>
+
+  <rect x="40" y="60" width="330" height="96" rx="9" fill="#fff" stroke="#cbd5e1"/>
+  <text x="56" y="82" class="box-t">Public pages</text>
+  <text x="56" y="101" class="mono-s">Home · Curriculum · Tuition · Careers</text>
+  <text x="56" y="118" class="mono-s">Projects · About · Contact · 3D World</text>
+  <text x="56" y="140" class="box-s">renders src/lib instantly, swaps in DB rows</text>
+
+  <rect x="390" y="60" width="238" height="96" rx="9" fill="#fff" stroke="#cbd5e1"/>
+  <text x="406" y="82" class="box-t">ChatWidget</text>
+  <text x="406" y="101" class="mono-s">floating, every page</text>
+  <text x="406" y="123" class="box-s">asks a question,</text>
+  <text x="406" y="140" class="box-s">renders reply + sources</text>
+
+  <rect x="648" y="60" width="432" height="96" rx="9" fill="#fff" stroke="#cbd5e1"/>
+  <text x="664" y="82" class="box-t">Admin dashboard <tspan class="box-s">— 10 tabs, schema-driven</tspan></text>
+  <text x="664" y="103" class="mono-s">FAQs · Projects · News · Staff · Student types</text>
+  <text x="664" y="120" class="mono-s">Fee rows · Courses · Study plan · Elective tracks</text>
+  <text x="664" y="140" class="mono-s" fill="#f97316">Unanswered  ← questions the bot could not answer</text>
+
+  <!-- static modules -->
+  <rect x="1130" y="24" width="510" height="158" rx="12" fill="#fffbeb" stroke="#fcd34d"/>
+  <text x="1150" y="48" class="lbl" fill="#b45309">src/lib — static data modules</text>
+  <text x="1150" y="72" class="mono">courseDescriptions.js · curriculumData.js</text>
+  <text x="1150" y="92" class="mono">tuitionData.js · staffData.js</text>
+  <text x="1150" y="118" class="box-s">Three jobs at once:</text>
+  <text x="1150" y="136" class="box-s">① seed for the tables  ② fallback when Supabase is down</text>
+  <text x="1150" y="154" class="box-s">③ source the chatbot's knowledge is built from</text>
+
+  <!-- browser -> api -->
+  <path d="M205,214 L205,238" stroke="#94a3b8" stroke-width="1.6" marker-end="url(#a)"/>
+  <text x="214" y="232" class="edge">/api/content</text>
+  <path d="M509,182 L509,238" stroke="#f97316" stroke-width="1.8" marker-end="url(#ao)"/>
+  <text x="518" y="200" class="edge-hi">/api/chat</text>
+  <path d="M864,182 L864,238" stroke="#94a3b8" stroke-width="1.6" marker-end="url(#a)"/>
+  <text x="873" y="230" class="edge">/api/admin/* · /api/content</text>
+
+  <!-- static -> pages (fallback) -->
+  <path d="M1385,178 L1385,206 L205,206 L205,180" fill="none" stroke="#f59e0b" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#a)"/>
+  <text x="1075" y="200" class="edge" fill="#b45309">bundled at build time — first paint, and the fallback</text>
+
+  <!-- ================= VERCEL ================= -->
+  <rect x="20" y="238" width="1620" height="210" rx="12" fill="#f8fafc" stroke="#e2e8f0"/>
+  <text x="40" y="262" class="lbl">VERCEL SERVERLESS FUNCTIONS — api/ · holds every secret · 10s hard timeout</text>
+
+  <rect x="40" y="276" width="300" height="152" rx="9" fill="#fff" stroke="#cbd5e1"/>
+  <text x="56" y="298" class="mono">api/content.js</text>
+  <text x="56" y="318" class="box-s">One endpoint, all 9 content types.</text>
+  <text x="56" y="335" class="box-s">?type= is a key into a whitelist,</text>
+  <text x="56" y="352" class="box-s">never interpolated into SQL.</text>
+  <text x="56" y="374" class="box-s">GET public · writes need the</text>
+  <text x="56" y="391" class="box-s">admin cookie + service role key</text>
+  <text x="56" y="414" class="mono-s" fill="#f97316">chat_misses: admin-only read</text>
+
+  <rect x="356" y="276" width="330" height="152" rx="9" fill="#fff" stroke="#f97316" stroke-width="1.6"/>
+  <text x="372" y="298" class="mono">api/chat.js</text>
+  <text x="372" y="318" class="box-s">1. greeting? answer, stop</text>
+  <text x="372" y="335" class="box-s">2. retrieve → filter by confidence</text>
+  <text x="372" y="352" class="box-s">3. weak match? Gemini rewrites,</text>
+  <text x="372" y="369" class="box-s">    search again, keep if better</text>
+  <text x="372" y="386" class="box-s">4. Gemini phrases the chunks</text>
+  <text x="372" y="403" class="box-s">5. any failure → chunk verbatim</text>
+  <text x="372" y="422" class="mono-s" fill="#f97316">budget 8.5s of the 10s cap</text>
+
+  <rect x="702" y="276" width="300" height="152" rx="9" fill="#fff" stroke="#cbd5e1"/>
+  <text x="718" y="298" class="mono">api/careers.js</text>
+  <text x="718" y="318" class="box-s">Three cache layers so the</text>
+  <text x="718" y="335" class="box-s">metered API is barely touched:</text>
+  <text x="718" y="357" class="mono-s">localStorage 30 min</text>
+  <text x="718" y="375" class="mono-s">job_cache 24 h</text>
+  <text x="718" y="393" class="mono-s">live call — 170/month ceiling</text>
+  <text x="718" y="416" class="box-s">ceiling enforced in one SQL statement</text>
+
+  <rect x="1018" y="276" width="288" height="152" rx="9" fill="#fff" stroke="#cbd5e1"/>
+  <text x="1034" y="298" class="mono">api/admin/*.js</text>
+  <text x="1034" y="318" class="box-s">login · logout · session · faqs</text>
+  <text x="1034" y="342" class="box-s">Supabase Auth checks the password.</text>
+  <text x="1034" y="359" class="box-s">The session is our own HMAC</text>
+  <text x="1034" y="376" class="box-s">cookie, signed with SESSION_SECRET.</text>
+  <text x="1034" y="400" class="mono-s" fill="#dc2626">unset in production →</text>
+  <text x="1034" y="417" class="mono-s" fill="#dc2626">every admin route 503s</text>
+
+  <rect x="1322" y="276" width="300" height="152" rx="9" fill="#fff" stroke="#cbd5e1"/>
+  <text x="1338" y="298" class="mono">api/_lib/</text>
+  <text x="1338" y="320" class="mono-s">env.js — every secret, one place</text>
+  <text x="1338" y="338" class="mono-s">session.js — HMAC cookie</text>
+  <text x="1338" y="356" class="mono-s">knowledgeBase.js — retrieval</text>
+  <text x="1338" y="374" class="mono-s">gemini.js — optional phrasing</text>
+  <text x="1338" y="392" class="mono-s">jobCache.js — job quota</text>
+  <text x="1338" y="410" class="mono-s">mockData.js — offline fallback</text>
+
+  <!-- api -> data -->
+  <path d="M190,432 L190,556" stroke="#94a3b8" stroke-width="1.6" marker-end="url(#a)"/>
+  <text x="199" y="500" class="edge">site_* tables</text>
+  <path d="M470,432 L470,556" stroke="#f97316" stroke-width="1.8" marker-end="url(#ao)"/>
+  <text x="479" y="500" class="edge-hi">search_kb()</text>
+  <path d="M690,432 C760,486 1170,500 1240,556" fill="none" stroke="#10b981" stroke-width="1.6" marker-end="url(#ag)"/>
+  <text x="900" y="466" class="edge" fill="#059669">retrieved text → phrased  (never asked what it knows)</text>
+  <path d="M840,432 L840,556" stroke="#94a3b8" stroke-width="1.6" marker-end="url(#a)"/>
+  <text x="849" y="500" class="edge">job_cache</text>
+  <path d="M1120,432 L1120,556" stroke="#94a3b8" stroke-width="1.6" marker-end="url(#a)"/>
+  <text x="1129" y="500" class="edge">Auth · faqs</text>
+  <path d="M990,432 C1080,500 1400,505 1450,556" fill="none" stroke="#94a3b8" stroke-width="1.6" marker-end="url(#a)"/>
+  <text x="1240" y="516" class="edge">≤170 live calls/month</text>
+
+  <!-- ================= DATA ================= -->
+  <rect x="20" y="556" width="1080" height="216" rx="12" fill="#f0f9ff" stroke="#bae6fd"/>
+  <text x="40" y="580" class="lbl" fill="#0369a1">SUPABASE — Postgres · Auth · PostgREST</text>
+
+  <rect x="40" y="594" width="320" height="162" rx="9" fill="#fff" stroke="#bae6fd"/>
+  <text x="56" y="616" class="box-t">Site content — 9 tables</text>
+  <text x="56" y="637" class="mono-s">site_projects · site_news · site_staff</text>
+  <text x="56" y="655" class="mono-s">site_student_types · site_fee_rows</text>
+  <text x="56" y="673" class="mono-s">site_courses · site_study_plan</text>
+  <text x="56" y="691" class="mono-s">site_elective_courses</text>
+  <text x="56" y="716" class="box-s">RLS on, public SELECT,</text>
+  <text x="56" y="733" class="box-s">no write policy — writes only via</text>
+  <text x="56" y="750" class="box-s">service role, behind the admin cookie</text>
+
+  <rect x="376" y="594" width="330" height="162" rx="9" fill="#fff" stroke="#f97316" stroke-width="1.6"/>
+  <text x="392" y="616" class="box-t">Chatbot knowledge</text>
+  <text x="392" y="638" class="mono-s">kb_chunks — 119 rows</text>
+  <text x="392" y="656" class="mono-s">faqs — 17, edited live in admin</text>
+  <text x="392" y="674" class="mono-s">chat_misses — no SELECT policy</text>
+  <text x="392" y="699" class="mono">search_kb(query, limit)</text>
+  <text x="392" y="718" class="box-s">English: to_tsvector + ts_rank_cd</text>
+  <text x="392" y="735" class="box-s">Thai: pg_trgm — Postgres has no Thai</text>
+  <text x="392" y="752" class="box-s">config and Thai has no word spaces</text>
+
+  <rect x="722" y="594" width="358" height="162" rx="9" fill="#fff" stroke="#bae6fd"/>
+  <text x="738" y="616" class="box-t">Job cache &amp; quota</text>
+  <text x="738" y="638" class="mono-s">job_cache · job_fetch_meta</text>
+  <text x="738" y="656" class="mono-s">job_fetch_budget</text>
+  <text x="738" y="676" class="mono">consume_job_fetch_budget()</text>
+  <text x="738" y="694" class="box-s">check-and-increment in one statement,</text>
+  <text x="738" y="711" class="box-s">so two concurrent calls cannot both</text>
+  <text x="738" y="728" class="box-s">claim the last one</text>
+  <text x="738" y="752" class="box-t">Supabase Auth <tspan class="box-s">— password check only</tspan></text>
+
+  <!-- external -->
+  <rect x="1130" y="556" width="510" height="216" rx="12" fill="#f0fdf4" stroke="#bbf7d0"/>
+  <text x="1150" y="580" class="lbl" fill="#15803d">EXTERNAL APIs</text>
+
+  <rect x="1150" y="594" width="470" height="76" rx="9" fill="#fff" stroke="#bbf7d0"/>
+  <text x="1166" y="616" class="box-t">Google Gemini <tspan class="mono-s">gemini-3.5-flash-lite · free tier</tspan></text>
+  <text x="1166" y="637" class="box-s">Phrases retrieved text · rewrites weak queries</text>
+  <text x="1166" y="656" class="box-s">Optional. 429 / timeout / no key → verbatim chunk instead</text>
+
+  <rect x="1150" y="682" width="470" height="74" rx="9" fill="#fff" stroke="#bbf7d0"/>
+  <text x="1166" y="704" class="box-t">JSearch <tspan class="mono-s">RapidAPI · metered monthly</tspan></text>
+  <text x="1166" y="725" class="box-s">Live job listings for Career Explorer</text>
+  <text x="1166" y="744" class="box-s">Hard ceiling of 170 calls/month, enforced in Postgres</text>
+
+  <!-- ================= SCRIPTS ================= -->
+  <rect x="20" y="794" width="1620" height="120" rx="12" fill="#faf5ff" stroke="#e9d5ff"/>
+  <text x="40" y="818" class="lbl" fill="#7e22ce">SCRIPTS — run by hand, never at request time</text>
+
+  <rect x="40" y="832" width="500" height="66" rx="9" fill="#fff" stroke="#e9d5ff"/>
+  <text x="56" y="854" class="mono">node scripts/build-kb.js</text>
+  <text x="56" y="874" class="box-s">src/lib → 119 chunks → kb_chunks. Idempotent.</text>
+  <text x="56" y="890" class="box-s">Re-run after editing anything in src/lib.</text>
+
+  <rect x="556" y="832" width="520" height="66" rx="9" fill="#fff" stroke="#e9d5ff"/>
+  <text x="572" y="854" class="mono">node scripts/seed-content.js --apply</text>
+  <text x="572" y="874" class="box-s">src/lib → the site_* tables. Use this, not the SQL editor:</text>
+  <text x="572" y="890" class="box-s">pasting migrations corrupted 93 rows of UTF-8.</text>
+
+  <rect x="1092" y="832" width="530" height="66" rx="9" fill="#fff" stroke="#e9d5ff"/>
+  <text x="1108" y="854" class="box-t">Fallback ladder — a user never sees a 500</text>
+  <text x="1108" y="874" class="box-s">Supabase paused → static content + 6 built-in facts</text>
+  <text x="1108" y="890" class="box-s">Gemini down → verbatim chunk · no match → honest "I don't know"</text>
+
+
+
+  <text x="20" y="952" class="note">Data flows down. Nothing flows back up into src/lib — those files are the source, edited in the repo and pushed.</text>
+  <text x="20" y="971" class="note">Admin edits write to Postgres and appear on the site immediately. FAQ edits reach the chatbot immediately; course/staff/fee edits need build-kb.js re-run.</text>
+</svg>
+</div>
+</body>
+</html>
