@@ -273,7 +273,7 @@ export default async function handler(req, res) {
   if (hasGeminiKey) {
     const remaining = TOTAL_BUDGET_MS - (Date.now() - startedAt);
     if (remaining >= MIN_MODEL_MS) {
-      const { context } = formatContext(confident, { preferThai: thai });
+      const { context } = formatContext(confident, { includeThai: thai });
       const generated = await generateAnswer(context, message, remaining, thai ? "Thai" : "English");
       if (generated) {
         res.status(200).json({ reply: generated, simulated: false, generated: true, sources });

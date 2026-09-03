@@ -166,14 +166,20 @@ const MAX_DOC_CHARS = 1200;
 /**
  * Chunks as a labelled context block for the model, plus the titles used.
  *
- * `preferThai` selects which side of a bilingual chunk to send. The other side
- * is not a translation the model needs — it is the same fact again, at double
- * the token cost and roughly double the latency.
+ * content_en always goes in: it carries the structured header — course code,
+ * credits, prerequisites — that content_th does not. Sending the Thai side
+ * alone made the model decline questions it could previously answer, because
+ * the prose was there but nothing tied it to a course.
+ *
+ * content_th is added only for Thai questions, where it is the material the
+ * answer should be written from. For English questions it is the same fact
+ * again at double the tokens, which is what pushed a single request past 9s.
  */
-export function formatContext(chunks, { preferThai = false } = {}) {
+export function formatContext(chunks, { includeThai = false } = {}) {
   const blocks = chunks.map((c) => {
-    const primary = preferThai ? c.content_th : c.content_en;
-    const body = (primary || c.content_en || c.content_th || "").slice(0, MAX_DOC_CHARS);
+    const parts = [c.content_en];
+    if (includeThai && c.content_th) parts.push(c.content_th);
+    const body = parts.filter(Boolean).join("\n").slice(0, MAX_DOC_CHARS) || c.content_th || "";
     return `<document source="${c.source}" title="${c.title}">\n${body}\n</document>`;
   });
   return {
