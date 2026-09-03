@@ -46,7 +46,7 @@ const REWRITE_PROMPT = `You turn a student's question into search keywords for a
 Output ONLY the keywords, space separated, no punctuation, no explanation, at most 8 words.
 
 Use the vocabulary a curriculum document would use, not the student's casual phrasing:
-- "is it hard to get in" -> admission requirements TCAS quota entry
+- "is it hard to get in" -> apply TCAS quota applicants routes
 - "what do I need to bring" -> laptop software equipment CDLC
 - "can I work abroad" -> cooperative education internship placement
 - "who teaches AI" -> lecturer specialty artificial intelligence machine learning
