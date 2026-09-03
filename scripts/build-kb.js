@@ -13,10 +13,10 @@
 // service role key is used because kb_chunks has no write policy — see the
 // migration.
 
-import { STUDY_PLAN, ELECTIVE_COURSES } from "../src/lib/curriculumData.js";
-import { COURSE_DESCRIPTIONS } from "../src/lib/courseDescriptions.js";
-import { STUDENT_TYPES, FEE_BREAKDOWN, MEKONG_COUNTRIES, formatBaht } from "../src/lib/tuitionData.js";
-import { LECTURERS } from "../src/lib/staffData.js";
+import { STUDY_PLAN, ELECTIVE_COURSES } from "../shared/curriculumData.js";
+import { COURSE_DESCRIPTIONS } from "../shared/courseDescriptions.js";
+import { STUDENT_TYPES, FEE_BREAKDOWN, MEKONG_COUNTRIES, formatBaht } from "../shared/tuitionData.js";
+import { LECTURERS } from "../shared/staffData.js";
 
 const DRY_RUN = process.argv.includes("--dry-run");
 

@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Brain, Clapperboard, Gamepad2, Code2, X, ChevronDown } from "lucide-react";
-import { STUDY_PLAN, ELECTIVE_COURSES, CATEGORIES, PROGRAM_TOTAL_CREDITS } from "../lib/curriculumData.js";
-import { COURSE_DESCRIPTIONS } from "../lib/courseDescriptions.js";
+import { STUDY_PLAN, ELECTIVE_COURSES, CATEGORIES, PROGRAM_TOTAL_CREDITS } from "../../shared/curriculumData.js";
+import { COURSE_DESCRIPTIONS } from "../../shared/courseDescriptions.js";
 import FadeIn from "../components/FadeIn.jsx";
 import { useContent } from "../lib/contentClient.js";
 

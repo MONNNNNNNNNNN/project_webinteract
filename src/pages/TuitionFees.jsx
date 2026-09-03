@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { STUDENT_TYPES, FEE_BREAKDOWN, MEKONG_COUNTRIES, grandTotal, formatBaht } from "../lib/tuitionData.js";
+import { STUDENT_TYPES, FEE_BREAKDOWN, MEKONG_COUNTRIES, grandTotal, formatBaht } from "../../shared/tuitionData.js";
 import FadeIn from "../components/FadeIn.jsx";
 import { useContent } from "../lib/contentClient.js";
 

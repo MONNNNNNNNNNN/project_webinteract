@@ -69,7 +69,7 @@ api/                        Vercel serverless functions
   _lib/                      env.js (key flags), session.js (HMAC cookie),
                              jobCache.js (Supabase job cache), mockData.js,
                              knowledgeBase.js (chatbot retrieval)
-scripts/build-kb.js         Rebuilds the chatbot knowledge base from src/lib/
+scripts/build-kb.js         Rebuilds the chatbot knowledge base from shared/
 src/
   pages/                    One file per route
     Admin/                  Admin routes (live — Supabase Auth + session cookie)
@@ -110,8 +110,8 @@ clean up unless asked.
 `docs/reference/curriculum-data.md` and `docs/reference/tuition-data.md` were
 transcribed directly from screenshots inside `Studio_4_Final_Report__A.pdf`
 (pages 15-19, 25-27 for curriculum; 38-39 for tuition). **Read those markdown
-files, not the PDF** — they're the source of truth for `src/lib/curriculumData.js`
-and `src/lib/tuitionData.js`. A few course codes in the curriculum data are marked
+files, not the PDF** — they're the source of truth for `shared/curriculumData.js`
+and `shared/tuitionData.js`. A few course codes in the curriculum data are marked
 `[unclear]` where the source screenshot was obscured by a UI tooltip or rendered
 ambiguously at low resolution — flagged inline, verify against the official KKU
 curriculum before publishing.
@@ -163,7 +163,7 @@ call, so listings are cached in two places rather than fetched per page view:
   budget can't be read the code fails *closed* — Supabase being down means the
   result couldn't be cached anyway, so a live call would be quota spent for
   nothing.
-- **Browser** — `src/lib/careersCache.js` persists each interest's list to
+- **Browser** — `shared/careersCache.js` persists each interest's list to
   localStorage (30 min fresh, discarded after 7 days) so a reload or a return
   visit paints instantly and, inside the fresh window, makes no request at all.
 
@@ -179,11 +179,11 @@ course, lecturer, or fee row. Retrieval is Postgres full-text search — **no
 embeddings, no pgvector, no embedding provider.** The corpus is ~120 chunks of
 mostly exact-term queries, where FTS is competitive and costs nothing per query.
 
-- **Ingestion** — `node scripts/build-kb.js` reads the `src/lib/*.js` data
+- **Ingestion** — `node scripts/build-kb.js` reads the `shared/*.js` data
   modules and upserts chunks keyed on a stable derived id (`course:EN 843 402`),
   deleting any row whose id it no longer produces. Idempotent; `--dry-run` builds
   and counts without touching the network. Needs `SUPABASE_SERVICE_ROLE_KEY`.
-  **Re-run it after editing any file in `src/lib/`** — nothing does this
+  **Re-run it after editing any file in `shared/`** — nothing does this
   automatically.
 - **Two matchers, because Thai and English cannot share one.** English uses
   `to_tsvector('english', …)` + `ts_rank_cd` with normalization flag 32, which
@@ -250,9 +250,9 @@ Content that used to be a hardcoded array in a page is now a Supabase table the
 admin dashboard can edit. Migrated so far: Student Projects and the Home news
 carousel (`0011`), the lecturer directory (`0012`), tuition (`0013`), and the
 curriculum — courses, study plan, elective tracks (`0014`). That is every
-content domain; `src/lib/*.js` now serves only as seed and fallback.
+content domain; `shared/*.js` now serves only as seed and fallback.
 
-`grandTotal()` in `src/lib/tuitionData.js` now takes `(rows, period)` rather than
+`grandTotal()` in `shared/tuitionData.js` now takes `(rows, period)` rather than
 `(statusId, period)`, so one function serves both the static `FEE_BREAKDOWN` and
 rows from `site_fee_rows`. It reads either spelling of the exclusion flag.
 Amounts are validated as non-negative integers in three places — the CHECK
@@ -262,7 +262,7 @@ because these are figures a prospective student budgets against.
 - **The static array is still the source of truth for the seed and the runtime
   fallback.** `STATIC_PROJECTS` in `StudentProjects.jsx` and `STATIC_NEWS` in
   `Home.jsx` are still imported and still render first paint. `useContent()`
-  (`src/lib/contentClient.js`) swaps in database rows only when the response is
+  (`shared/contentClient.js`) swaps in database rows only when the response is
   authoritative. Supabase free-tier projects pause after 7 days idle, so a paused
   project degrades to the site as built rather than to a blank page. Do not delete
   those arrays; if you edit one, update migration `0011` to match.

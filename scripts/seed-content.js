@@ -17,10 +17,10 @@
 //
 // Requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.
 
-import { STUDY_PLAN, ELECTIVE_COURSES } from "../src/lib/curriculumData.js";
-import { COURSE_DESCRIPTIONS } from "../src/lib/courseDescriptions.js";
-import { STUDENT_TYPES, FEE_BREAKDOWN } from "../src/lib/tuitionData.js";
-import { LECTURERS } from "../src/lib/staffData.js";
+import { STUDY_PLAN, ELECTIVE_COURSES } from "../shared/curriculumData.js";
+import { COURSE_DESCRIPTIONS } from "../shared/courseDescriptions.js";
+import { STUDENT_TYPES, FEE_BREAKDOWN } from "../shared/tuitionData.js";
+import { LECTURERS } from "../shared/staffData.js";
 
 const APPLY = process.argv.includes("--apply");
 const URL = process.env.SUPABASE_URL;

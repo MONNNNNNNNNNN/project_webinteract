@@ -1,6 +1,6 @@
 // Simulated data — used when no live provider key is configured
 // (ANTHROPIC_API_KEY / JSEARCH_API_KEY). Facts distilled from
-// src/lib/curriculumData.js and src/lib/tuitionData.js.
+// shared/curriculumData.js and shared/tuitionData.js.
 
 export const FAQ_FACTS = [
   {

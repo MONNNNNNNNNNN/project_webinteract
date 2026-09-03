@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown, ExternalLink } from "lucide-react";
 import DmeFullLogo from "../components/DmeFullLogo.jsx";
 import FadeIn from "../components/FadeIn.jsx";
-import { LECTURERS } from "../lib/staffData.js";
+import { LECTURERS } from "../../shared/staffData.js";
 import { useContent } from "../lib/contentClient.js";
 
 const facts = [
