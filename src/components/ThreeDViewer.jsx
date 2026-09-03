@@ -44,6 +44,14 @@ function useKeyboardMove() {
   return move;
 }
 
+// drei's PointerLockControls attaches its click-to-lock listener document-wide
+// by default, so any click on the page asks the canvas for pointer lock. Once
+// the page gained a room switcher that broke: clicking a pill unmounts the
+// canvas, and the queued lock request lands on an element already gone —
+// "Failed to execute 'requestPointerLock': Target Element removed from DOM".
+// Scoping the listener to the stage means only clicking the view locks it.
+const STAGE_ID = "three-d-stage";
+
 function WalkControls({ onLockChange }) {
   const move = useKeyboardMove();
   const { camera } = useThree();
@@ -77,7 +85,13 @@ function WalkControls({ onLockChange }) {
     }
   });
 
-  return <PointerLockControls onLock={() => onLockChange(true)} onUnlock={() => onLockChange(false)} />;
+  return (
+    <PointerLockControls
+      selector={`#${STAGE_ID}`}
+      onLock={() => onLockChange(true)}
+      onUnlock={() => onLockChange(false)}
+    />
+  );
 }
 
 function isTouchDevice() {
@@ -89,7 +103,7 @@ export default function ThreeDViewer({ modelUrl }) {
   const [touch] = useState(isTouchDevice);
 
   return (
-    <div className="relative h-full w-full">
+    <div id={STAGE_ID} className="relative h-full w-full">
       <Canvas shadows camera={{ fov: 70, position: [0, EYE_HEIGHT, 6] }} onCreated={({ gl }) => gl.setClearColor("#0f1729")}>
         <fog attach="fog" args={["#0f1729", 8, 45]} />
         <ambientLight intensity={0.7} />
