@@ -107,6 +107,8 @@ Edit these in the repo and push. Nothing writes back to them.
 node scripts/build-kb.js --dry-run    build the chunks, write nothing
 node scripts/build-kb.js              shared/ -> kb_chunks  (idempotent)
 node scripts/seed-content.js --apply  shared/ -> the site_* tables
+node scripts/prune-media.js           list unreferenced uploads
+node scripts/prune-media.js --apply   delete them
 ```
 
 Both need `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`. Re-run `build-kb.js`

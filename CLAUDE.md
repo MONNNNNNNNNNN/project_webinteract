@@ -289,6 +289,12 @@ because these are figures a prospective student budgets against.
   from the validated MIME type rather than the supplied name. Limits: 50MB, and
   JPG/PNG/WebP/GIF/AVIF/MP4/WebM/MOV, enforced both in the endpoint and on the
   bucket. Free-tier Storage is 1GB total, so video will consume it quickly.
+- **Uploads outlive the rows that point at them.** A file reaches Storage the
+  moment it is picked; the row is written only on Save. Picking a photo and then
+  changing your mind leaves an orphan through the ordinary flow, not just by
+  deleting a row. `node scripts/prune-media.js` lists them, `--apply` deletes.
+  It skips anything newer than 24h by default, because an upload with no row yet
+  is indistinguishable from an upload for a form still open on someone's screen.
 - **The primary-key column is per-type.** Most tables key on a generated uuid
   `id`; `site_courses` keys on `code` and `site_student_types` on a text `id`.
   `pkOf(spec)` in the endpoint and `schema.idField` in the admin UI carry that —
