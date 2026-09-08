@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { emptyValues } from "./contentSchemas.js";
+import MediaField from "./MediaField.jsx";
 
 /** Append a parameter to an endpoint that may or may not already have a query. */
 function withParam(endpoint, key, value) {
@@ -10,6 +11,8 @@ function withParam(endpoint, key, value) {
 }
 
 function FieldInput({ field, value, onChange }) {
+  if (field.type === "media") return <MediaField field={field} value={value} onChange={onChange} />;
+
   const base =
     "w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none dark:border-slate-800 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-500";
 

@@ -279,6 +279,16 @@ because these are figures a prospective student budgets against.
   through an explicit map. Unknown names render no icon rather than crashing.
 - **Images are URL strings.** Vercel's runtime filesystem is read-only; there is no
   upload path.
+- **Admin media uploads go browser -> Supabase Storage, not through Vercel.**
+  `api/upload.js` checks the admin session and returns a one-shot signed URL for
+  the `site-media` bucket; the browser PUTs the file straight there. Routing the
+  bytes through the function would cap uploads at Vercel's ~4.5MB request body,
+  which a phone video clears in seconds. The service role key never leaves the
+  server — the browser only ever holds a token scoped to one object path.
+  Filenames are generated, never taken from the client, and the extension comes
+  from the validated MIME type rather than the supplied name. Limits: 50MB, and
+  JPG/PNG/WebP/GIF/AVIF/MP4/WebM/MOV, enforced both in the endpoint and on the
+  bucket. Free-tier Storage is 1GB total, so video will consume it quickly.
 - **The primary-key column is per-type.** Most tables key on a generated uuid
   `id`; `site_courses` keys on `code` and `site_student_types` on a text `id`.
   `pkOf(spec)` in the endpoint and `schema.idField` in the admin UI carry that —

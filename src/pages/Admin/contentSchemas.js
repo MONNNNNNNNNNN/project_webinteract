@@ -33,7 +33,7 @@ export const CONTENT_SCHEMAS = [
       { name: "title", label: "Title", type: "text", required: true },
       { name: "category", label: "Category", type: "text", required: true },
       { name: "description", label: "Description", type: "textarea" },
-      { name: "image_url", label: "Image URL or /path", type: "text" },
+      { name: "image_url", label: "Image or video", type: "media", folder: "projects" },
       {
         name: "icon_name",
         label: "Icon name (used when there is no image)",
@@ -57,7 +57,13 @@ export const CONTENT_SCHEMAS = [
       { name: "tag", label: "Tag", type: "text", required: true },
       { name: "title", label: "Title", type: "text", required: true },
       { name: "description", label: "Description", type: "textarea" },
-      { name: "image_url", label: "Image URL or /path", type: "text" },
+      {
+        name: "image_url",
+        label: "Image or video",
+        type: "media",
+        folder: "news",
+        hint: "Upload from your computer, or paste a path such as /news/photo.jpg.",
+      },
       { name: "is_real", label: 'Show the "Real" badge', type: "checkbox" },
       { name: "sort_order", label: "Sort order", type: "number" },
     ],
@@ -76,7 +82,7 @@ export const CONTENT_SCHEMAS = [
       { name: "title", label: "Academic title", type: "text", hint: "Assoc. Prof., Asst. Prof., Prof., or Lecturer." },
       { name: "specialty", label: "Specialty", type: "textarea" },
       { name: "education", label: "Education", type: "textarea" },
-      { name: "photo_url", label: "Photo URL or /path", type: "text" },
+      { name: "photo_url", label: "Photo", type: "media", folder: "staff" },
       {
         name: "profile_url",
         label: "Profile URL",
