@@ -38,7 +38,7 @@ export const CONTENT_SCHEMAS = [
         name: "icon_name",
         label: "Icon name (used when there is no image)",
         type: "text",
-        hint: "Clapperboard, Gamepad2, or Bot. Anything else renders no icon.",
+        hint: "Bot, Box, Brain, Camera, Clapperboard, Code2, Gamepad2, GraduationCap, Music, Palette, Presentation, Trophy, Users. Leave blank or misspell it and the category's own icon is used.",
       },
       { name: "is_real", label: 'Show the "Real" badge', type: "checkbox" },
       { name: "sort_order", label: "Sort order", type: "number" },

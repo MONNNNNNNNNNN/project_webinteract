@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw, LayoutGrid, MapPin } from "lucide-react";
 import FadeIn from "../components/FadeIn.jsx";
 import { prefetchCareers, getCachedCareers, refreshCareers, CAREER_INTERESTS } from "../lib/careersCache.js";
+import { INTEREST_ICONS, companyAvatar } from "../lib/topicIcons.js";
 
 function relativeTime(iso) {
   if (!iso) return null;
@@ -79,28 +80,33 @@ export default function CareerExplorer() {
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={() => setInterest("")}
-            className={`rounded-full border px-3 py-1 text-xs transition ${
+            className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition ${
               interest === ""
                 ? "border-dme-orange bg-dme-orange/10 text-dme-orange"
                 : "border-slate-300 text-slate-500 dark:border-slate-700 dark:text-slate-400"
             }`}
           >
+            <LayoutGrid className="h-3.5 w-3.5" />
             All
           </motion.button>
-          {CAREER_INTERESTS.map((f) => (
-            <motion.button
-              key={f}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setInterest(f)}
-              className={`rounded-full border px-3 py-1 text-xs transition ${
-                interest === f
-                  ? "border-dme-orange bg-dme-orange/10 text-dme-orange"
-                  : "border-slate-300 text-slate-500 dark:border-slate-700 dark:text-slate-400"
-              }`}
-            >
-              {f}
-            </motion.button>
-          ))}
+          {CAREER_INTERESTS.map((f) => {
+            const Icon = INTEREST_ICONS[f];
+            return (
+              <motion.button
+                key={f}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setInterest(f)}
+                className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition ${
+                  interest === f
+                    ? "border-dme-orange bg-dme-orange/10 text-dme-orange"
+                    : "border-slate-300 text-slate-500 dark:border-slate-700 dark:text-slate-400"
+                }`}
+              >
+                {Icon && <Icon className="h-3.5 w-3.5" />}
+                {f}
+              </motion.button>
+            );
+          })}
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={handleRefresh}
@@ -135,23 +141,47 @@ export default function CareerExplorer() {
 
       {!loading && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {jobs.map((job, i) => (
-            <FadeIn key={job.id} delay={0.04 * i}>
-              <a
-                href={job.url}
-                target="_blank"
-                rel="noreferrer"
-                className="block rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:scale-[1.02] hover:border-dme-orange hover:shadow-lg hover:shadow-dme-orange/10 dark:border-slate-800 dark:bg-slate-900/40 dark:shadow-none"
-              >
-                {job.interest && (
-                  <p className="text-xs uppercase tracking-wide text-dme-orange">{job.interest}</p>
-                )}
-                <p className="mt-1 font-semibold text-slate-900 dark:text-white">{job.title}</p>
-                <p className="text-sm text-slate-600 dark:text-slate-400">{job.company}</p>
-                <p className="mt-2 text-xs text-slate-500">{job.location}</p>
-              </a>
-            </FadeIn>
-          ))}
+          {jobs.map((job, i) => {
+            const { initials, tint, Fallback } = companyAvatar(job.company);
+            const InterestIcon = INTEREST_ICONS[job.interest];
+            return (
+              <FadeIn key={job.id} delay={0.04 * i}>
+                <a
+                  href={job.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex h-full gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:scale-[1.02] hover:border-dme-orange hover:shadow-lg hover:shadow-dme-orange/10 dark:border-slate-800 dark:bg-slate-900/40 dark:shadow-none"
+                >
+                  {/* Every listing is a title, a company and a place, so the
+                      grid reads as one paragraph of text. The tile gives each
+                      card an anchor you can find again without re-reading it,
+                      and the color is derived from the company name so it
+                      survives the list being re-sorted by a filter change. */}
+                  <span
+                    aria-hidden="true"
+                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-sm font-bold ${tint}`}
+                  >
+                    {initials || <Fallback className="h-5 w-5" strokeWidth={1.75} />}
+                  </span>
+
+                  <div className="min-w-0 flex-1">
+                    {job.interest && (
+                      <p className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-dme-orange">
+                        {InterestIcon && <InterestIcon className="h-3.5 w-3.5" />}
+                        {job.interest}
+                      </p>
+                    )}
+                    <p className="mt-1 font-semibold text-slate-900 dark:text-white">{job.title}</p>
+                    <p className="text-sm text-slate-600 dark:text-slate-400">{job.company}</p>
+                    <p className="mt-2 flex items-start gap-1.5 text-xs text-slate-500">
+                      <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
+                      <span className="min-w-0">{job.location}</span>
+                    </p>
+                  </div>
+                </a>
+              </FadeIn>
+            );
+          })}
         </div>
       )}
     </div>

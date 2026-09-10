@@ -76,11 +76,12 @@ src/
       ContentManager.jsx      Generic table editor, driven by contentSchemas.js
       contentSchemas.js        One schema entry per admin-editable domain
   components/               Navbar, Footer, ChatWidget, ComingSoon, etc.
-  lib/                      Static data modules (curriculumData.js, tuitionData.js,
-                             staffData.js) that the real-content pages import as
-                             seed/fallback — see Admin-editable content below —
-                             plus careersCache.js (localStorage job cache) and
-                             contentClient.js (useContent() hook for those tables)
+  lib/                      Browser-side helpers only. careersCache.js
+                             (localStorage job cache), contentClient.js
+                             (useContent() hook), topicIcons.js (the site's icon
+                             vocabulary — see Icons below). The static data
+                             modules these pages fall back to live in shared/,
+                             not here.
 supabase/
   migrations/                0001-0015: programs, courses, student_status,
                              fee_detail, faqs, job_cache, job_fetch_budget,
@@ -243,6 +244,29 @@ retrieval already works, and this stays as the fallback for when the model is
 unreachable. Fallback ladder today: no Supabase → six built-in facts, flagged
 `simulated: true`; nothing matched above the floor → an explicit "I don't know"
 plus contacts. A user never sees a 500.
+
+## Icons
+
+`src/lib/topicIcons.js` is the whole site's icon vocabulary — elective tracks,
+credit categories, career interests, student types, fee rows, company avatars.
+It is one file on purpose: "AI" has to be the same purple brain on the
+Curriculum tracks and on a job card, or the icons stop being a language and go
+back to being decoration. Add a subject there, not next to the page that needs
+it.
+
+- **Every resolver has a fallback.** Fee rows, project `icon_name` and student
+  types are all admin-editable free text, so an unrecognised value resolves to a
+  generic icon or the category's own — never to a hole in the layout.
+- **`companyAvatar()` derives its color from the company name, not the list
+  position.** Career Explorer re-sorts on every filter change, and a tile that
+  changes color when it moves reads as a different company. It takes the first
+  *letter* of each word rather than the first character, because names arrive
+  with punctuation attached — "Buono (Thailand) Public Company Limited"
+  initialled as `B(` before that.
+- **A stretched `<button>` needs `flex flex-col`, not `block`.** Chrome centres
+  a button's content vertically once it has a height, and `h-full` in a grid row
+  gives it one — so a card shorter than its row floated its image off the top
+  edge. Hit the Student Projects cards, the year cards and the credit cards.
 
 ## Admin-editable content
 

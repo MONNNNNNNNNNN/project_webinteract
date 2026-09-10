@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronDown, ExternalLink } from "lucide-react";
+import { ChevronDown, ExternalLink, HelpCircle, BookOpen, Target, Award, Users } from "lucide-react";
 import DmeFullLogo from "../components/DmeFullLogo.jsx";
 import FadeIn from "../components/FadeIn.jsx";
 import { LECTURERS } from "../../shared/staffData.js";
@@ -9,30 +9,39 @@ import { useContent } from "../lib/contentClient.js";
 const facts = [
   {
     title: "What is DME?",
+    icon: HelpCircle,
     body: "Digital Media Engineering (DME) is an international undergraduate program at Khon Kaen University's Faculty of Engineering that blends software engineering fundamentals with digital media production — 3D/animation, interactive media, AI, and game/software development.",
   },
   {
     title: "What do we learn?",
+    icon: BookOpen,
     body: "Students build a foundation in programming, data structures, and computer graphics in Years 1-2, then specialize in Years 3-4 through elective tracks: AI, Digital Media, Interactive, or Software. See the Curriculum Roadmap for the full plan.",
   },
   {
     title: "Vision & Mission",
+    icon: Target,
     body: "To produce engineers who can design, build, and ship digital media products end-to-end — combining engineering rigor with creative and interactive media skills that the games, animation, and software industries need.",
   },
   {
     title: "Why choose DME KKU?",
+    icon: Award,
     body: "DME-specific facilities (CDLC, Mac labs, VR/broadcast classrooms), an updated curriculum aligned with industry tools (Unity, Unreal, Adobe Suite, Figma, Blender), and a curriculum designed around 4 real specialization tracks rather than a generic CS degree.",
   },
 ];
 
-function AccordionSection({ title, isOpen, onToggle, children }) {
+function AccordionSection({ title, icon: Icon, isOpen, onToggle, children }) {
   return (
     <div className="overflow-hidden rounded-lg border-l-2 border-dme-orange">
       <button
         onClick={onToggle}
         className="flex w-full items-center justify-between py-2 pl-4 pr-2 text-left transition hover:bg-slate-100 dark:hover:bg-slate-900/40"
       >
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-white">{title}</h2>
+        {/* div, not span: a span's content model is phrasing content and an
+            h2 is not, so the span version was invalid markup. */}
+        <div className="flex items-center gap-2.5">
+          {Icon && <Icon className="h-5 w-5 shrink-0 text-dme-orange" strokeWidth={1.75} />}
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-white">{title}</h2>
+        </div>
         <motion.span animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
           <ChevronDown className="h-5 w-5 text-slate-400" />
         </motion.span>
@@ -74,7 +83,7 @@ export default function AboutDME() {
   // LECTURERS is both the seed for migration 0012 and the fallback here.
   const lecturers = useContent("staff", LECTURERS, mapStaffRow);
 
-  const sections = [...facts, { title: "Lecturer", isLecturer: true }];
+  const sections = [...facts, { title: "Lecturer", icon: Users, isLecturer: true }];
 
   return (
     <div className="relative mx-auto max-w-4xl overflow-hidden px-4 py-12">
@@ -95,6 +104,7 @@ export default function AboutDME() {
           <FadeIn key={s.title} delay={0.06 * i}>
             <AccordionSection
               title={s.title}
+              icon={s.icon}
               isOpen={openIndex === i}
               onToggle={() => setOpenIndex((cur) => (cur === i ? -1 : i))}
             >

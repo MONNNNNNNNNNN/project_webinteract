@@ -1,10 +1,22 @@
 import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Brain, Clapperboard, Gamepad2, Code2, X, ChevronDown } from "lucide-react";
+import {
+  X,
+  ChevronDown,
+  Film,
+  Radio,
+  MousePointerClick,
+  Palette,
+  Boxes,
+  AudioLines,
+  MonitorSmartphone,
+  Glasses,
+} from "lucide-react";
 import { STUDY_PLAN, ELECTIVE_COURSES, CATEGORIES, PROGRAM_TOTAL_CREDITS } from "../../shared/curriculumData.js";
 import { COURSE_DESCRIPTIONS } from "../../shared/courseDescriptions.js";
 import FadeIn from "../components/FadeIn.jsx";
 import { useContent } from "../lib/contentClient.js";
+import { TRACK_ICONS, CREDIT_CATEGORY_ICONS, barWidth } from "../lib/topicIcons.js";
 
 const categoryColors = {
   AI: "bg-purple-500/10 text-purple-600 border-purple-500/40 dark:bg-purple-500/20 dark:text-purple-300",
@@ -13,12 +25,26 @@ const categoryColors = {
   Software: "bg-emerald-500/10 text-emerald-600 border-emerald-500/40 dark:bg-emerald-500/20 dark:text-emerald-300",
 };
 
-const categoryIcons = {
-  AI: Brain,
-  "Digital Media": Clapperboard,
-  Interactive: Gamepad2,
-  Software: Code2,
-};
+const categoryIcons = TRACK_ICONS;
+
+// "What you'll study" used to be three paragraphs of prose. The content is
+// really two lists, so it renders as two lists — an icon per item is something
+// you can scan, where the same words inside a sentence are something you have
+// to read.
+const RESPONSIBILITIES = [
+  { icon: MonitorSmartphone, label: "Designing applications" },
+  { icon: Radio, label: "Implementing streaming technologies" },
+  { icon: MousePointerClick, label: "Developing interactive experiences" },
+  { icon: Boxes, label: "Building asset management systems" },
+];
+
+const COMPETENCIES = [
+  { icon: AudioLines, label: "Audio / video programming" },
+  { icon: Radio, label: "Streaming protocols" },
+  { icon: Film, label: "Interactive media development" },
+  { icon: Palette, label: "User experience design" },
+  { icon: Glasses, label: "Virtual & augmented reality" },
+];
 
 // Matches the color legend from the 2026 Course Map PDF.
 const typeColors = {
@@ -299,6 +325,11 @@ export default function CurriculumRoadmap() {
     [courseRows]
   );
   const yearSummaries = useMemo(() => buildYearSummaries(studyPlan), [studyPlan]);
+  // Guarded: an admin can empty the study plan, and 0 would make every bar NaN.
+  const heaviestYear = useMemo(
+    () => Math.max(1, ...yearSummaries.map((y) => y.yearCredits)),
+    [yearSummaries]
+  );
   const allByCategory = useMemo(
     () => buildAllByCategory(studyPlan, electiveCourses),
     [studyPlan, electiveCourses]
@@ -365,16 +396,36 @@ export default function CurriculumRoadmap() {
               Digital Media Engineering students specialize in developing, implementing, and optimizing
               technology systems for creating, processing, delivering, and displaying digital content.
             </p>
-            <p className="mb-3 text-slate-600 dark:text-slate-300">
-              <span className="font-semibold text-slate-900 dark:text-white">Core responsibilities:</span>{" "}
-              designing applications, implementing streaming technologies, developing interactive
-              experiences, and building asset management systems.
-            </p>
-            <p className="text-slate-600 dark:text-slate-300">
-              <span className="font-semibold text-slate-900 dark:text-white">Key competencies:</span>{" "}
-              programming for audio/video, streaming protocols, interactive media development, user
-              experience design, and virtual/augmented reality technologies.
-            </p>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/30 dark:shadow-none">
+                <p className="mb-3 text-sm font-semibold text-slate-900 dark:text-white">
+                  Core responsibilities
+                </p>
+                <ul className="space-y-2">
+                  {RESPONSIBILITIES.map((r) => (
+                    <li key={r.label} className="flex items-center gap-2.5 text-sm text-slate-600 dark:text-slate-300">
+                      <r.icon className="h-4 w-4 shrink-0 text-dme-orange" strokeWidth={1.75} />
+                      {r.label}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/30 dark:shadow-none">
+                <p className="mb-3 text-sm font-semibold text-slate-900 dark:text-white">
+                  Key competencies
+                </p>
+                <ul className="space-y-2">
+                  {COMPETENCIES.map((c) => (
+                    <li key={c.label} className="flex items-center gap-2.5 text-sm text-slate-600 dark:text-slate-300">
+                      <c.icon className="h-4 w-4 shrink-0 text-dme-orange" strokeWidth={1.75} />
+                      {c.label}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
           </div>
 
           <div>
@@ -385,11 +436,37 @@ export default function CurriculumRoadmap() {
                   key={c.label}
                   whileTap={{ scale: 0.97 }}
                   onClick={() => goToAllCoursesCategory(c.label)}
-                  className="rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-dme-orange dark:border-slate-800 dark:bg-slate-900/30 dark:shadow-none dark:hover:bg-slate-900"
+                  /* Same Chrome quirk as the year cards: a grid stretches these
+                     to the tallest in the row, and a button with a height
+                     centres its own content. flex-col keeps them aligned. */
+                  className="flex flex-col rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-dme-orange dark:border-slate-800 dark:bg-slate-900/30 dark:shadow-none dark:hover:bg-slate-900"
                 >
-                  <p className="text-2xl font-bold text-dme-orange">{c.credits}</p>
-                  <p className="text-sm font-semibold text-slate-900 dark:text-white">{c.label}</p>
-                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{c.note}</p>
+                  <div className="flex items-start gap-3">
+                    {(() => {
+                      const meta = CREDIT_CATEGORY_ICONS[c.label];
+                      if (!meta) return null;
+                      return (
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800">
+                          <meta.Icon className={`h-5 w-5 ${meta.tint}`} strokeWidth={1.75} />
+                        </span>
+                      );
+                    })()}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-2xl font-bold leading-none text-dme-orange">{c.credits}</p>
+                      <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{c.label}</p>
+                    </div>
+                  </div>
+
+                  {/* Width is the share of the whole degree, so six numbers you
+                      would otherwise have to compare become six lengths. */}
+                  <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                    <div
+                      className="h-full rounded-full bg-dme-orange/70"
+                      style={{ width: barWidth(c.credits, PROGRAM_TOTAL_CREDITS) }}
+                    />
+                  </div>
+
+                  <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{c.note}</p>
                 </motion.button>
               ))}
             </div>
@@ -407,11 +484,27 @@ export default function CurriculumRoadmap() {
                       setCourseView("plan");
                       setSection("course");
                     }}
-                    className="block h-full w-full rounded-xl border border-slate-200 bg-white p-5 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-dme-orange dark:border-slate-800 dark:bg-slate-900/30 dark:shadow-none dark:hover:bg-slate-900"
+                    /* flex-col so the content sits at the top: Chrome centres a
+                       button's content vertically once h-full gives it a fixed
+                       height, which drifts the year label off the card's edge. */
+                    className="flex h-full w-full flex-col rounded-xl border border-slate-200 bg-white p-5 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-dme-orange dark:border-slate-800 dark:bg-slate-900/30 dark:shadow-none dark:hover:bg-slate-900"
                   >
-                    <h3 className="mb-2 text-lg font-bold text-dme-orange">Year {y.year}</h3>
+                    <div className="mb-3 flex items-center gap-2.5">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-dme-orange/15 text-sm font-bold text-dme-orange">
+                        {y.year}
+                      </span>
+                      <h3 className="text-lg font-bold text-dme-orange">Year {y.year}</h3>
+                    </div>
                     <p className="mb-1 text-2xl font-bold text-slate-900 dark:text-white">{y.yearCredits}</p>
                     <p className="text-xs text-slate-500">credits this year · {y.courseCount} courses</p>
+                    {/* Against the heaviest year, so the lighter final year is
+                        visible as a shorter bar rather than as a smaller number. */}
+                    <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                      <div
+                        className="h-full rounded-full bg-dme-orange/70"
+                        style={{ width: barWidth(y.yearCredits, heaviestYear) }}
+                      />
+                    </div>
                   </motion.button>
                 </FadeIn>
               ))}

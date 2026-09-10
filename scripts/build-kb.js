@@ -227,7 +227,7 @@ const PAGE_CHUNKS = [
     content_en:
       "Digital Media Engineering students specialize in developing, implementing, and optimizing technology systems for creating, processing, delivering, and displaying digital content. " +
       "Core responsibilities: designing applications, implementing streaming technologies, developing interactive experiences, and building asset management systems. " +
-      "Key competencies: programming for audio/video, streaming protocols, interactive media development, user experience design, and virtual/augmented reality technologies. " +
+      "Key competencies: audio/video programming, streaming protocols, interactive media development, user experience design, and virtual and augmented reality. " +
       "The program is 120 credits over 4 years on the Cooperative Education track: General Education 30, Basic Engineering 15, Core Engineering 36, Elective Engineering minimum 27, Field Experience 6, Free Elective minimum 6.",
     content_th: "",
     metadata: { page: "Curriculum Roadmap" },

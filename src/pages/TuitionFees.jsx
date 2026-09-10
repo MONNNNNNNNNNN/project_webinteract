@@ -1,8 +1,10 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { STUDENT_TYPES, FEE_BREAKDOWN, MEKONG_COUNTRIES, grandTotal, formatBaht } from "../../shared/tuitionData.js";
+import { Wallet } from "lucide-react";
 import FadeIn from "../components/FadeIn.jsx";
 import { useContent } from "../lib/contentClient.js";
+import { STUDENT_TYPE_ICONS, feeIcon } from "../lib/topicIcons.js";
 
 // The static FEE_BREAKDOWN is nested by student type and period; site_fee_rows
 // is flat. Flatten the static copy once so both sources share one shape and the
@@ -41,6 +43,42 @@ function mapFeeRow(row) {
     amount: row.amount,
     excludedFromTotal: row.excluded_from_total,
   };
+}
+
+// The academic and living-cost tables were the same markup twice. They are one
+// component now, which is also the only sane place to hang the per-row icon.
+function FeeTable({ rows }) {
+  return (
+    <div className="mb-4 overflow-x-auto">
+      <table className="w-full text-sm">
+        <tbody>
+          {rows.map((r, i) => {
+            const Icon = feeIcon(r.item);
+            return (
+              <tr key={r.id || i} className="border-b border-slate-100 last:border-0 dark:border-slate-800/60">
+                <td className="py-2 text-slate-700 dark:text-slate-200">
+                  <span className="flex items-center gap-2.5">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-100 dark:bg-slate-800">
+                      <Icon className="h-4 w-4 text-slate-500 dark:text-slate-400" strokeWidth={1.75} />
+                    </span>
+                    <span>
+                      {r.item}
+                      <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] uppercase text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                        {r.type}
+                      </span>
+                    </span>
+                  </span>
+                </td>
+                <td className="py-2 text-right font-medium text-slate-900 dark:text-slate-100">
+                  {formatBaht(r.amount)}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 export default function TuitionFees() {
@@ -86,8 +124,31 @@ export default function TuitionFees() {
                   : "border-slate-200 bg-white shadow-sm hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/40 dark:shadow-none dark:hover:border-slate-600"
               }`}
             >
-              <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Semester Fee</p>
-              <p className="text-sm font-medium text-slate-600 dark:text-slate-300">{s.label}</p>
+              <div className="mb-2 flex items-center gap-2.5">
+                {/* An admin can add a student type this map has never seen, so
+                    an unknown id falls back rather than rendering a hole. */}
+                {(() => {
+                  const Icon = STUDENT_TYPE_ICONS[s.id] || Wallet;
+                  return (
+                    <span
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                        status.id === s.id ? "bg-dme-orange/20" : "bg-slate-100 dark:bg-slate-800"
+                      }`}
+                    >
+                      <Icon
+                        className={`h-5 w-5 ${
+                          status.id === s.id ? "text-dme-orange" : "text-slate-500 dark:text-slate-400"
+                        }`}
+                        strokeWidth={1.75}
+                      />
+                    </span>
+                  );
+                })()}
+                <div className="min-w-0">
+                  <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Semester Fee</p>
+                  <p className="truncate text-sm font-medium text-slate-600 dark:text-slate-300">{s.label}</p>
+                </div>
+              </div>
               <p className="text-2xl font-bold text-slate-900 dark:text-white">{formatBaht(s.semesterFee)}</p>
             </motion.button>
           ))}
@@ -131,46 +192,14 @@ export default function TuitionFees() {
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
             Academic Costs
           </p>
-          <div className="mb-4 overflow-x-auto">
-            <table className="w-full text-sm">
-              <tbody>
-                {academicRows.map((r, i) => (
-                  <tr key={i} className="border-b border-slate-100 last:border-0 dark:border-slate-800/60">
-                    <td className="py-2 text-slate-700 dark:text-slate-200">
-                      {r.item}
-                      <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] uppercase text-slate-500 dark:bg-slate-800 dark:text-slate-400">
-                        {r.type}
-                      </span>
-                    </td>
-                    <td className="py-2 text-right font-medium text-slate-900 dark:text-slate-100">{formatBaht(r.amount)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <FeeTable rows={academicRows} />
 
           {status.hasLivingCost && livingRows.length > 0 && (
             <>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Estimated Living Costs
               </p>
-              <div className="mb-4 overflow-x-auto">
-                <table className="w-full text-sm">
-                  <tbody>
-                    {livingRows.map((r, i) => (
-                      <tr key={i} className="border-b border-slate-100 last:border-0 dark:border-slate-800/60">
-                        <td className="py-2 text-slate-700 dark:text-slate-200">
-                          {r.item}
-                          <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] uppercase text-slate-500 dark:bg-slate-800 dark:text-slate-400">
-                            {r.type}
-                          </span>
-                        </td>
-                        <td className="py-2 text-right font-medium text-slate-900 dark:text-slate-100">{formatBaht(r.amount)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <FeeTable rows={livingRows} />
             </>
           )}
         </div>

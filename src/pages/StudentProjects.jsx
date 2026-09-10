@@ -1,14 +1,93 @@
 import { createElement, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Clapperboard, Gamepad2, Bot, X } from "lucide-react";
+import {
+  Bot,
+  Box,
+  Brain,
+  Camera,
+  Clapperboard,
+  Code2,
+  Gamepad2,
+  GraduationCap,
+  Music,
+  Palette,
+  Presentation,
+  Trophy,
+  Users,
+  X,
+} from "lucide-react";
 import FadeIn from "../components/FadeIn.jsx";
 import { useContent } from "../lib/contentClient.js";
+import { TRACK_ICONS } from "../lib/topicIcons.js";
 
 // A lucide icon is a React component and cannot be stored in Postgres, so rows
-// carry an icon *name* and it is resolved here. Unknown names resolve to
-// undefined and the card renders an empty tile rather than crashing — an admin
-// can type anything into that field.
-const ICONS = { Clapperboard, Gamepad2, Bot };
+// carry an icon *name* and it is resolved here. Unknown names fall back to the
+// category's own icon rather than to an empty tile — an admin can type anything
+// into that field, and a blank card is worse than an approximate one.
+const ICONS = {
+  Bot,
+  Box,
+  Brain,
+  Camera,
+  Clapperboard,
+  Code2,
+  Gamepad2,
+  GraduationCap,
+  Music,
+  Palette,
+  Presentation,
+  Trophy,
+  Users,
+};
+
+// The category chip is the only thing every card has, image or not. Giving it an
+// icon means a card is identifiable before you read its title, and it doubles as
+// the fallback art for a card with no image and no usable icon_name.
+//
+// Three of these categories are the same subjects as the Curriculum's elective
+// tracks, so they read their icon out of TRACK_ICONS rather than naming a lucide
+// component again — a project tagged "Digital Media" and the Digital Media track
+// have to stay the same clapperboard. ("Software / AI" is a merged label with no
+// single track, so it picks the AI side deliberately.) The washes stay local:
+// they are this page's card art, not part of the shared vocabulary.
+const CATEGORY_STYLES = {
+  Award: { Icon: Trophy, wash: "from-amber-500/25 to-amber-500/5", tint: "text-amber-600 dark:text-amber-300" },
+  "Field Study": { Icon: Users, wash: "from-sky-500/25 to-sky-500/5", tint: "text-sky-600 dark:text-sky-300" },
+  "Digital Media": {
+    Icon: TRACK_ICONS["Digital Media"],
+    wash: "from-pink-500/25 to-pink-500/5",
+    tint: "text-pink-600 dark:text-pink-300",
+  },
+  Interactive: {
+    Icon: TRACK_ICONS.Interactive,
+    wash: "from-blue-500/25 to-blue-500/5",
+    tint: "text-blue-600 dark:text-blue-300",
+  },
+  "Software / AI": {
+    Icon: TRACK_ICONS.AI,
+    wash: "from-purple-500/25 to-purple-500/5",
+    tint: "text-purple-600 dark:text-purple-300",
+  },
+};
+
+const DEFAULT_STYLE = {
+  Icon: Presentation,
+  wash: "from-slate-500/20 to-slate-500/5",
+  tint: "text-slate-500 dark:text-slate-400",
+};
+
+const styleFor = (category) => CATEGORY_STYLES[category] || DEFAULT_STYLE;
+
+/** Fallback art for a card with no image: the icon on its category's wash. */
+function IconTile({ project, className, iconClassName }) {
+  const style = styleFor(project.category);
+  const Icon = ICONS[project.iconName] || style.Icon;
+  return (
+    <div className={`flex items-center justify-center bg-gradient-to-br ${style.wash} ${className}`}>
+      <Icon className={`${iconClassName} ${style.tint}`} strokeWidth={1.25} />
+    </div>
+  );
+}
 
 // Seed for supabase/migrations/0011 and the runtime fallback when Supabase is
 // unreachable. Keep in sync with that migration if you edit it here.
@@ -81,22 +160,21 @@ export default function StudentProjects() {
           <FadeIn key={p.id || p.title} delay={0.08 * i}>
             <button
               onClick={() => setSelected(p)}
-              className="block h-full w-full overflow-hidden rounded-xl border border-slate-200 bg-white text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:scale-[1.02] hover:border-dme-orange hover:shadow-lg hover:shadow-dme-orange/10 dark:border-slate-800 dark:bg-slate-900/40 dark:shadow-none"
+              /* flex-col, not block: Chrome vertically centres a button's
+                 content once the button has a height, and h-full gives it one.
+                 A card shorter than its row floated its image off the top edge,
+                 leaving an uneven white band above and below. */
+              className="flex h-full w-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:scale-[1.02] hover:border-dme-orange hover:shadow-lg hover:shadow-dme-orange/10 dark:border-slate-800 dark:bg-slate-900/40 dark:shadow-none"
             >
               {p.image ? (
                 <img src={p.image} alt={p.title} className="h-40 w-full object-cover object-top" />
               ) : (
-                <div className="flex h-40 items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900">
-                  {ICONS[p.iconName] &&
-                    createElement(ICONS[p.iconName], {
-                      className: "h-12 w-12 text-dme-orange",
-                      strokeWidth: 1.5,
-                    })}
-                </div>
+                <IconTile project={p} className="h-40 w-full" iconClassName="h-14 w-14" />
               )}
               <div className="p-4">
                 <div className="mb-2 flex items-center gap-2">
-                  <span className="inline-block rounded-full bg-dme-orange/10 px-2 py-0.5 text-xs font-medium text-dme-orange dark:bg-dme-orange/20">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-dme-orange/10 px-2 py-0.5 text-xs font-medium text-dme-orange dark:bg-dme-orange/20">
+                    {createElement(styleFor(p.category).Icon, { className: "h-3.5 w-3.5" })}
                     {p.category}
                   </span>
                   {p.real && (
@@ -134,13 +212,7 @@ export default function StudentProjects() {
                 {selected.image ? (
                   <img src={selected.image} alt={selected.title} className="w-full object-cover object-top" />
                 ) : (
-                  <div className="flex h-48 items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900">
-                    {ICONS[selected.iconName] &&
-                      createElement(ICONS[selected.iconName], {
-                        className: "h-16 w-16 text-dme-orange",
-                        strokeWidth: 1.5,
-                      })}
-                  </div>
+                  <IconTile project={selected} className="h-48 w-full" iconClassName="h-20 w-20" />
                 )}
                 <button
                   onClick={() => setSelected(null)}
@@ -152,7 +224,8 @@ export default function StudentProjects() {
               </div>
               <div className="p-5">
                 <div className="mb-2 flex items-center gap-2">
-                  <span className="inline-block rounded-full bg-dme-orange/10 px-2 py-0.5 text-xs font-medium text-dme-orange dark:bg-dme-orange/20">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-dme-orange/10 px-2 py-0.5 text-xs font-medium text-dme-orange dark:bg-dme-orange/20">
+                    {createElement(styleFor(selected.category).Icon, { className: "h-3.5 w-3.5" })}
                     {selected.category}
                   </span>
                   {selected.real && (
