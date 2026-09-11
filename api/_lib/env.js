@@ -19,6 +19,19 @@ export const SESSION_SECRET = process.env.SESSION_SECRET || FALLBACK_SESSION_SEC
 // False when SESSION_SECRET is unset, empty, or set to the published fallback.
 export const hasSessionSecret = SESSION_SECRET !== FALLBACK_SESSION_SECRET;
 
+// Who may hold an admin session. Supabase Auth only proves a password is
+// right, not that its owner is an admin — and the project allows sign-ups, so
+// without this list anyone who registers an account can edit the fee schedule.
+// Comma-separated, compared case-insensitively. See isAdminEmail() in session.js.
+export const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || "")
+  .split(",")
+  .map((e) => e.trim().toLowerCase())
+  .filter(Boolean);
+
+// Production and preview both have publicly reachable URLs; local dev (unset,
+// or "development" under `vercel dev`) does not.
+export const isDeployed = ["production", "preview"].includes(process.env.VERCEL_ENV);
+
 export const ADMIN_DEMO_EMAIL = process.env.ADMIN_DEMO_EMAIL || "admin@dme.kku.ac.th";
 export const ADMIN_DEMO_PASSWORD = process.env.ADMIN_DEMO_PASSWORD || "demo1234";
 

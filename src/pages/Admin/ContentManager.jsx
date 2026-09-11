@@ -10,7 +10,7 @@ function withParam(endpoint, key, value) {
   return `${endpoint}${endpoint.includes("?") ? "&" : "?"}${key}=${encodeURIComponent(value)}`;
 }
 
-function FieldInput({ field, value, onChange }) {
+function FieldInput({ field, value, onChange, locked }) {
   if (field.type === "media") return <MediaField field={field} value={value} onChange={onChange} />;
 
   const base =
@@ -61,7 +61,8 @@ function FieldInput({ field, value, onChange }) {
           type={field.type === "number" ? "number" : "text"}
           value={value ?? ""}
           onChange={(e) => onChange(field.name, e.target.value)}
-          className={base}
+          readOnly={locked}
+          className={`${base} ${locked ? "cursor-not-allowed opacity-60" : ""}`}
         />
       )}
       {field.hint && <span className="mt-1 block text-[11px] text-slate-400">{field.hint}</span>}
@@ -155,7 +156,10 @@ export default function ContentManager({ schema }) {
       const res = await fetch(schema.endpoint, {
         method: editingId ? "PUT" : "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(editingId ? { id: editingId, ...values } : values),
+        // The row being edited goes last, so it wins. Spread first, a student
+        // type's editable `id` field overrode it: change the Key box to
+        // "mekong" while editing "thai" and the PUT rewrote the Mekong row.
+        body: JSON.stringify(editingId ? { ...values, id: editingId } : values),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || `Save failed (${res.status})`);
@@ -210,7 +214,15 @@ export default function ContentManager({ schema }) {
           {editingId ? `Edit ${schema.singular}` : `Add ${schema.singular}`}
         </p>
         {schema.fields.map((f) => (
-          <FieldInput key={f.name} field={f} value={values[f.name]} onChange={setField} />
+          <FieldInput
+            key={f.name}
+            field={f}
+            value={values[f.name]}
+            onChange={setField}
+            // The key identifies the row; the server never patches it, so an
+            // editable box would only promise a rename that cannot happen.
+            locked={Boolean(editingId) && f.name === idField}
+          />
         ))}
         <div className="flex gap-2">
           <button

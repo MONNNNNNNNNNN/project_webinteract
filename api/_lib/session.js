@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { SESSION_SECRET, hasSessionSecret } from "./env.js";
+import { SESSION_SECRET, hasSessionSecret, ADMIN_EMAILS, isDeployed } from "./env.js";
 
 const COOKIE_NAME = "dme_admin";
 const MAX_AGE_MS = 8 * 60 * 60 * 1000; // 8 hours
@@ -7,24 +7,37 @@ const MAX_AGE_MS = 8 * 60 * 60 * 1000; // 8 hours
 /**
  * Admin auth cannot be trusted and every admin route must fail closed with 503.
  *
- * Without this, a deploy that forgot to set SESSION_SECRET signs its cookies
- * with a value published in this repository — anyone could forge `dme_admin`
- * and get whatever write access the admin routes expose. Failing closed turns a
- * silent authentication bypass into a loud misconfiguration.
+ * Two ways a deploy gets here:
+ *
+ * - SESSION_SECRET unset: cookies would be signed with a value published in
+ *   this repository, so anyone could forge `dme_admin`.
+ * - ADMIN_EMAILS unset: any account Supabase Auth accepts would become an admin,
+ *   and the project allows sign-ups, so that is anyone who registers.
+ *
+ * Either way the bypass is silent, and failing closed turns it into a loud
+ * misconfiguration instead.
  *
  * Covers preview as well as production. Every pull request gets a publicly
- * reachable preview URL running the same admin routes, so a preview deploy
- * without a real secret is exactly as forgeable as a production one. Local dev
- * (VERCEL_ENV unset, or "development" under `vercel dev`) stays permissive so the
- * app still runs with no env vars set, which is the documented behaviour of every
- * other integration here.
+ * reachable preview URL running the same admin routes. Local dev stays
+ * permissive so the app still runs with no env vars set, which is the
+ * documented behaviour of every other integration here.
  */
-const DEPLOYED_ENVS = ["production", "preview"];
-export const sessionsDisabled =
-  DEPLOYED_ENVS.includes(process.env.VERCEL_ENV) && !hasSessionSecret;
+export const sessionsDisabled = isDeployed && (!hasSessionSecret || ADMIN_EMAILS.length === 0);
 
-export const SESSIONS_DISABLED_MESSAGE =
-  "Admin sign-in is disabled: SESSION_SECRET is not set in this environment.";
+export const SESSIONS_DISABLED_MESSAGE = !hasSessionSecret
+  ? "Admin sign-in is disabled: SESSION_SECRET is not set in this environment."
+  : "Admin sign-in is disabled: ADMIN_EMAILS is not set in this environment.";
+
+/**
+ * Whether this address may hold an admin session.
+ *
+ * An empty list admits everyone, which is only reachable in local dev — a
+ * deployed environment with no list is caught by sessionsDisabled first.
+ */
+export function isAdminEmail(email) {
+  if (ADMIN_EMAILS.length === 0) return true;
+  return ADMIN_EMAILS.includes(String(email || "").toLowerCase());
+}
 
 function sign(payload) {
   return createHmac("sha256", SESSION_SECRET).update(payload).digest("base64url");
@@ -66,6 +79,10 @@ export function readSession(req) {
   try {
     const payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8"));
     if (!payload.exp || payload.exp < Date.now()) return null;
+    // Checked on every request, not only at login, so removing an address from
+    // ADMIN_EMAILS revokes its live sessions instead of letting them run out
+    // their 8 hours.
+    if (!isAdminEmail(payload.email)) return null;
     return payload;
   } catch {
     return null;
