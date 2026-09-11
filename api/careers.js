@@ -28,8 +28,29 @@ const MIN_LIVE_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
 // ran dry under the interval alone. Set below the plan limit so a miscount
 // or a manual test can't push it over.
 const MONTHLY_LIVE_BUDGET = 170;
+// Headroom above the even daily share, for manual refreshes and the first
+// cold-cache fetch of each bucket.
+const PACE_SLACK = 5;
 // Live JSearch returns ~10 rows per call; the cache accumulates far more.
 const MAX_JOBS = 60;
+
+/**
+ * How much of the month's budget may be spent by the end of today (UTC, to
+ * match the 'YYYY-MM' key consume_job_fetch_budget() writes).
+ *
+ * A cap alone does not stop a burst: the 10-minute floor still lets the
+ * refresh button spend 5 buckets x 6 calls an hour, which empties 170 in about
+ * six hours and leaves the cache frozen for the rest of the month. Passing a
+ * pro-rata limit to the same atomic function paces the month without a
+ * migration — a refresh storm can only spend today's share. Scheduled use is 5
+ * calls a day, which stays under ceil(170 x day / 31) at every day of every
+ * month, so the TTL path is never blocked by this.
+ */
+function pacedBudgetLimit(now = new Date()) {
+  const day = now.getUTCDate();
+  const daysInMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0)).getUTCDate();
+  return Math.min(MONTHLY_LIVE_BUDGET, Math.ceil((MONTHLY_LIVE_BUDGET * day) / daysInMonth) + PACE_SLACK);
+}
 
 function shuffled(arr) {
   const copy = [...arr];
@@ -130,6 +151,15 @@ export default async function handler(req, res) {
   const interest = (req.query?.interest || "").toString();
   const refresh = (req.query?.refresh || "").toString() === "1";
 
+  // Closed set. Each interest is its own cache bucket with its own 10-minute
+  // floor, and a bucket nobody has seen has no cache — so an open value let
+  // `?interest=a1`, `?interest=a2`, … each spend a live call, and 170 requests
+  // emptied the month's budget while filling job_cache with junk buckets.
+  if (interest && !Object.hasOwn(INTEREST_QUERY_TERMS, interest)) {
+    res.status(400).json({ error: `Unknown interest: ${interest}` });
+    return;
+  }
+
   // A plain read is safe to serve from Vercel's edge for a few minutes,
   // which cuts function invocations on top of the JSearch savings. An
   // explicit refresh must always reach the function.
@@ -179,16 +209,18 @@ export default async function handler(req, res) {
   // the result couldn't be cached anyway, and a live call would be quota
   // spent for nothing.
   let budget = null;
+  const budgetLimit = pacedBudgetLimit();
   if (shouldFetchLive) {
     try {
-      budget = await consumeFetchBudget(MONTHLY_LIVE_BUDGET);
+      budget = await consumeFetchBudget(budgetLimit);
     } catch (err) {
       console.error("[careers] budget check failed, skipping live call:", err.message);
       budget = { allowed: false, calls: null, month: null };
     }
     if (!budget.allowed) {
       console.warn(
-        `[careers] monthly live budget spent (${budget.calls ?? "?"}/${MONTHLY_LIVE_BUDGET}) — serving cache`
+        `[careers] live budget spent (${budget.calls ?? "?"}/${budgetLimit} so far this month, ` +
+          `${MONTHLY_LIVE_BUDGET} cap) — serving cache`
       );
     }
   }
@@ -252,6 +284,9 @@ export default async function handler(req, res) {
   }
 
   const budgetSpent = budget?.allowed === false;
+  // Pacing blocks for the rest of the day; the hard cap for the rest of the month.
+  const budgetResumes =
+    budget?.calls != null && budget.calls >= MONTHLY_LIVE_BUDGET ? "next month" : "tomorrow";
 
   // Reached when the live call itself succeeded but a cache write or the
   // re-read after it did not. Serve the batch we hold, unioned over whatever
@@ -290,7 +325,7 @@ export default async function handler(req, res) {
       lastFetchedAt: meta?.last_fetch_at || null,
       nextLiveFetchAt,
       note: budgetSpent
-        ? "Monthly live-data budget reached — serving saved listings until next month."
+        ? `Live-data budget reached — serving saved listings until ${budgetResumes}.`
         : liveError
           ? "Live job data is temporarily unavailable — serving saved listings."
           : refresh && !shouldFetchLive
@@ -309,7 +344,7 @@ export default async function handler(req, res) {
     source: "simulated",
     cached: false,
     note: budgetSpent
-      ? "Monthly live-data budget reached — showing representative listings until next month."
+      ? `Live-data budget reached — showing representative listings until ${budgetResumes}.`
       : hasJSearchKey
         ? "Live job data is temporarily unavailable — showing representative listings."
         : "Showing representative listings — set JSEARCH_API_KEY for live job data.",

@@ -1,5 +1,5 @@
 import { ADMIN_DEMO_EMAIL, ADMIN_DEMO_PASSWORD, SUPABASE_URL, SUPABASE_ANON_KEY, hasSupabase } from "../_lib/env.js";
-import { createSessionCookie, sessionsDisabled, SESSIONS_DISABLED_MESSAGE } from "../_lib/session.js";
+import { createSessionCookie, isAdminEmail, sessionsDisabled, SESSIONS_DISABLED_MESSAGE } from "../_lib/session.js";
 
 // Time-boxed: a hung auth service would otherwise sit on the whole 10s Vercel
 // Hobby budget and return nothing.
@@ -71,6 +71,13 @@ export default async function handler(req, res) {
 
   if (!authedEmail) {
     res.status(401).json({ error: "Invalid email or password" });
+    return;
+  }
+
+  // A correct password proves who someone is, not that they are an admin.
+  // Sign-ups are open on the Supabase project, so this is the actual gate.
+  if (!isAdminEmail(authedEmail)) {
+    res.status(403).json({ error: "This account does not have admin access." });
     return;
   }
 
