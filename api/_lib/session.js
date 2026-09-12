@@ -39,6 +39,10 @@ export function isAdminEmail(email) {
   return ADMIN_EMAILS.includes(String(email || "").toLowerCase());
 }
 
+// Deployed URLs are HTTPS-only, so the cookie can say so and never ride an
+// accidental http:// request. Left off locally, where `vite dev` serves http.
+const SECURE = isDeployed ? "; Secure" : "";
+
 function sign(payload) {
   return createHmac("sha256", SESSION_SECRET).update(payload).digest("base64url");
 }
@@ -50,11 +54,11 @@ export function createSessionCookie(email) {
   const sig = sign(encoded);
   const value = `${encoded}.${sig}`;
   const maxAgeSec = Math.floor(MAX_AGE_MS / 1000);
-  return `${COOKIE_NAME}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAgeSec}`;
+  return `${COOKIE_NAME}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAgeSec}${SECURE}`;
 }
 
 export function clearSessionCookie() {
-  return `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
+  return `${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${SECURE}`;
 }
 
 export function readSession(req) {

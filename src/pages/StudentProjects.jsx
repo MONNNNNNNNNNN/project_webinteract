@@ -17,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import FadeIn from "../components/FadeIn.jsx";
+import MediaView from "../components/MediaView.jsx";
 import { useContent } from "../lib/contentClient.js";
 import { TRACK_ICONS } from "../lib/topicIcons.js";
 
@@ -167,7 +168,7 @@ export default function StudentProjects() {
               className="flex h-full w-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:scale-[1.02] hover:border-dme-orange hover:shadow-lg hover:shadow-dme-orange/10 dark:border-slate-800 dark:bg-slate-900/40 dark:shadow-none"
             >
               {p.image ? (
-                <img src={p.image} alt={p.title} className="h-40 w-full object-cover object-top" />
+                <MediaView src={p.image} alt={p.title} className="h-40 w-full object-cover object-top" />
               ) : (
                 <IconTile project={p} className="h-40 w-full" iconClassName="h-14 w-14" />
               )}
@@ -210,7 +211,7 @@ export default function StudentProjects() {
             >
               <div className="relative">
                 {selected.image ? (
-                  <img src={selected.image} alt={selected.title} className="w-full object-cover object-top" />
+                  <MediaView src={selected.image} alt={selected.title} className="w-full object-cover object-top" controls />
                 ) : (
                   <IconTile project={selected} className="h-48 w-full" iconClassName="h-20 w-20" />
                 )}

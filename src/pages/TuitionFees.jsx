@@ -96,10 +96,14 @@ export default function TuitionFees() {
     () => feeRows.filter((r) => r.studentTypeId === status?.id && r.period === period),
     [feeRows, status, period]
   );
-  const total = useMemo(() => grandTotal(rows, period), [rows, period]);
-
   const academicRows = rows.filter((r) => r.type === "Mandatory" || r.type === "One-time");
   const livingRows = rows.filter((r) => r.type === "Optional");
+  const showLiving = Boolean(status?.hasLivingCost) && livingRows.length > 0;
+
+  // Sums exactly the rows on screen. Summing `rows` counted living costs even
+  // for a student type whose living-cost table is hidden, so the total
+  // disagreed with the breakdown directly above it.
+  const total = grandTotal(showLiving ? [...academicRows, ...livingRows] : academicRows, period);
 
   if (!status) return null;
 
@@ -194,7 +198,7 @@ export default function TuitionFees() {
           </p>
           <FeeTable rows={academicRows} />
 
-          {status.hasLivingCost && livingRows.length > 0 && (
+          {showLiving && (
             <>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Estimated Living Costs

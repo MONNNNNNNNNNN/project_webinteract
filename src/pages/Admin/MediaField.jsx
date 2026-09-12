@@ -10,8 +10,7 @@
 
 import { useRef, useState } from "react";
 import { Upload, X } from "lucide-react";
-
-const VIDEO = /\.(mp4|webm|mov)(\?|$)/i;
+import { isVideoUrl } from "../../lib/media.js";
 
 export default function MediaField({ field, value, onChange }) {
   const inputRef = useRef(null);
@@ -62,7 +61,7 @@ export default function MediaField({ field, value, onChange }) {
   }
 
   const busy = progress !== null;
-  const isVideo = value && VIDEO.test(value);
+  const isVideo = isVideoUrl(value);
 
   return (
     <label className="block">
