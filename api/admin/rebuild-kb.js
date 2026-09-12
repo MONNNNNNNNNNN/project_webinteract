@@ -1,18 +1,14 @@
-// Rebuilds the chatbot's knowledge base from the content tables.
+// Rebuilds the chatbot's knowledge base from the content tables, on demand.
 //
-// The pages read site_* live; the chatbot reads kb_chunks, which is a derived
-// copy. Without this, an admin who corrected a fee saw the Tuition page change
-// while the chatbot kept quoting the old amount until someone ran
-// scripts/build-kb.js from a terminal. FAQs need none of this — search_kb()
-// unions the faqs table at query time.
-//
-// Same code as the script (shared/kbChunks.js + api/_lib/kbSync.js): ~119 rows
-// in three upserts, measured well inside the budget below.
+// Normally unnecessary: api/content.js rebuilds automatically after every
+// save to a table the chatbot reads. This endpoint is the Retry behind the
+// warning an admin sees when that automatic rebuild failed — the save went
+// through, the chatbot's copy (kb_chunks) did not follow. FAQs never need it;
+// search_kb() unions the faqs table at query time.
 
 import { readSession, sessionsDisabled, SESSIONS_DISABLED_MESSAGE } from "../_lib/session.js";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, hasSupabaseAdmin } from "../_lib/env.js";
-import { readContentRows, syncChunks, countBySource } from "../_lib/kbSync.js";
-import { buildChunks } from "../../shared/kbChunks.js";
+import { rebuildKnowledge } from "../_lib/kbSync.js";
 
 // Vercel Hobby kills the function at 10s. Abort first so the admin gets an
 // explanation rather than a platform timeout page.
@@ -37,13 +33,13 @@ export default async function handler(req, res) {
   }
 
   const started = Date.now();
-  const signal = AbortSignal.timeout(BUDGET_MS);
-  const ctx = { url: SUPABASE_URL, key: SUPABASE_SERVICE_ROLE_KEY, signal };
-
   try {
-    const chunks = buildChunks(await readContentRows(ctx));
-    const { upserted, deleted } = await syncChunks({ ...ctx, chunks });
-    res.status(200).json({ upserted, deleted, bySource: countBySource(chunks), ms: Date.now() - started });
+    const result = await rebuildKnowledge({
+      url: SUPABASE_URL,
+      key: SUPABASE_SERVICE_ROLE_KEY,
+      signal: AbortSignal.timeout(BUDGET_MS),
+    });
+    res.status(200).json({ ...result, ms: Date.now() - started });
   } catch (err) {
     const detail = err.name === "TimeoutError" ? `Supabase did not finish within ${BUDGET_MS / 1000}s` : err.message;
     console.error("[rebuild-kb] failed:", detail);

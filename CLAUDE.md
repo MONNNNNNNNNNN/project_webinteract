@@ -206,14 +206,25 @@ mostly exact-term queries, where FTS is competitive and costs nothing per query.
 - **Ingestion reads the tables the pages render.** `shared/kbChunks.js` builds
   chunks from `site_*` rows. They are keyed on a stable derived id
   (`course:EN 843 402`), and any row whose id is no longer produced is deleted.
-  Two entry points run the same code (`api/_lib/kbSync.js`):
-  - the dashboard's **Rebuild chatbot knowledge** button (`POST /api/admin/rebuild-kb`, ~0.5s read)
-  - `node scripts/build-kb.js` from a terminal.
-
-  Both are idempotent. `--dry-run` builds from `shared/` via `staticRows()` with no
-  network. It used to read `shared/*.js` for real, so an admin's fee correction
-  reached the Tuition page but never the chatbot. **After editing fees, courses,
-  the study plan or staff, press Rebuild** — nothing triggers it automatically.
+  It used to read `shared/*.js`, so an admin's fee correction reached the
+  Tuition page but never the chatbot.
+- **It rebuilds automatically on every save.** Every admin save or delete on a
+  table the chatbot reads runs `rebuildKnowledge()` (`api/_lib/kbSync.js`) in
+  the same request, with whatever remains of an 8.5s budget. The tables are
+  courses, study plan, elective tracks, student types, fee rows and staff
+  (`FEEDS_CHATBOT` in `api/content.js`).
+  - The response carries `kb: { ok, … }`.
+  - A failed rebuild never fails the save. The tab shows an amber warning with
+    **Retry** (`POST /api/admin/rebuild-kb`).
+  - It replaced a manual "Rebuild chatbot knowledge" button that people forgot
+    to press.
+  - Measured ~0.5s of reads plus three upserts per save.
+  - Two saves racing can finish their rebuilds out of order. The next save or a
+    Retry fixes it.
+  - `node scripts/build-kb.js` runs the same code from a terminal. It is only
+    needed after writing the tables some other way, i.e. after
+    `seed-content.js`. `--dry-run` builds from `shared/` via `staticRows()`
+    with no network. Every path is idempotent.
   An all-empty read is refused ("never seeded"). One empty table is honoured.
 - **Two matchers, because Thai and English cannot share one.** English uses
   `to_tsvector('english', …)` + `ts_rank_cd` with normalization flag 32, which

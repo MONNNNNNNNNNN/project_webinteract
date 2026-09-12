@@ -25,10 +25,10 @@ Editing a file here changes the fallback only. Live content is changed in the
 admin dashboard, and re-seeding from these files overwrites those edits.
 
 The chatbot's 119 knowledge chunks are built from the tables by `kbChunks.js`,
-so they match the pages. Press **Rebuild chatbot knowledge** in the dashboard
-(or run `node scripts/build-kb.js`) after editing fees, courses, the study plan
-or staff. `build-kb.js --dry-run` builds from these files instead, for a count
-with no network.
+so they match the pages. Saving in the admin dashboard rebuilds them
+automatically. After re-seeding from these files, run `node scripts/build-kb.js`.
+`build-kb.js --dry-run` builds from these files instead, for a count with no
+network.
 
 `curriculumData.js` marks a few course codes `[unclear]` where the source
 screenshot was obscured. Those markers are load-bearing: they mean "verify

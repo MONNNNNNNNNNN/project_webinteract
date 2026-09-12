@@ -20,6 +20,7 @@
 import { randomUUID } from "node:crypto";
 import { readSession, sessionsDisabled, SESSIONS_DISABLED_MESSAGE } from "./_lib/session.js";
 import { SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, hasSupabase, hasSupabaseAdmin } from "./_lib/env.js";
+import { rebuildKnowledge } from "./_lib/kbSync.js";
 
 const CONTENT_TYPES = {
   projects: {
@@ -107,6 +108,49 @@ const INTEGER_COLUMNS = new Set(["sort_order", "amount", "semester_fee", "year",
 // coerced to something plausible.
 const NON_NEGATIVE_COLUMNS = new Set(["amount", "semester_fee", "year", "total_accumulated"]);
 const MAX_BULK_IDS = 200;
+
+// The content types the chatbot's knowledge (kb_chunks) is built from — the
+// TABLES map in api/_lib/kbSync.js. A write to one of these rebuilds it, so
+// the chatbot can never quote a fee the Tuition page no longer shows.
+// Projects and news are not in the chatbot; chat_misses is its own log.
+const FEEDS_CHATBOT = new Set(["courses", "study_plan", "elective_courses", "student_types", "fee_rows", "staff"]);
+
+// Whole-request budget against Vercel Hobby's 10s kill. The rebuild runs after
+// the write has succeeded and gets whatever is left; below MIN_REBUILD_MS six
+// reads and three upserts will not finish, so it is skipped and reported.
+const REQUEST_BUDGET_MS = 8500;
+const MIN_REBUILD_MS = 1500;
+
+/**
+ * Bring the chatbot's copy in line after a write to a table it is built from.
+ *
+ * Returns undefined for tables the chatbot does not read, else { ok, … }.
+ * Never throws: the admin's write already succeeded and must be reported as
+ * one. A failure surfaces as a warning with a Retry (api/admin/rebuild-kb.js).
+ *
+ * Measured ~0.5s to read the tables plus three upserts. Two saves racing can
+ * finish their rebuilds out of order and leave the earlier view in place;
+ * with one admin that is rare, and the next save or a Retry converges it.
+ */
+async function refreshChatbot(type, startedAt) {
+  if (!FEEDS_CHATBOT.has(type)) return undefined;
+  const left = REQUEST_BUDGET_MS - (Date.now() - startedAt);
+  if (left < MIN_REBUILD_MS) {
+    return { ok: false, error: "the save took too long to update the chatbot in the same request" };
+  }
+  try {
+    const { upserted, deleted } = await rebuildKnowledge({
+      url: SUPABASE_URL,
+      key: SUPABASE_SERVICE_ROLE_KEY,
+      signal: AbortSignal.timeout(left),
+    });
+    return { ok: true, upserted, deleted };
+  } catch (err) {
+    const error = err.name === "TimeoutError" ? "Supabase did not finish in time" : err.message;
+    console.error(`[content] ${type} chatbot rebuild failed:`, error);
+    return { ok: false, error };
+  }
+}
 
 // Simulated store, mirroring api/admin/faqs.js: lets the admin UI be exercised
 // with no Supabase configured.
@@ -246,6 +290,7 @@ async function deleteRows(spec, ids) {
 }
 
 export default async function handler(req, res) {
+  const started = Date.now();
   const type = (req.query?.type || "").toString();
   const spec = CONTENT_TYPES[type];
   if (!spec) {
@@ -313,7 +358,8 @@ export default async function handler(req, res) {
         res.status(201).json({ item, simulated: true });
         return;
       }
-      res.status(201).json({ item: await insertRow(spec, row), simulated: false });
+      const item = await insertRow(spec, row);
+      res.status(201).json({ item, simulated: false, kb: await refreshChatbot(type, started) });
       return;
     }
 
@@ -347,7 +393,7 @@ export default async function handler(req, res) {
         res.status(404).json({ error: "Not found" });
         return;
       }
-      res.status(200).json({ item, simulated: false });
+      res.status(200).json({ item, simulated: false, kb: await refreshChatbot(type, started) });
       return;
     }
 
@@ -385,7 +431,7 @@ export default async function handler(req, res) {
         res.status(404).json({ error: "Not found" });
         return;
       }
-      res.status(200).json({ ok: true, deleted, simulated: false });
+      res.status(200).json({ ok: true, deleted, simulated: false, kb: await refreshChatbot(type, started) });
       return;
     }
   } catch (err) {
