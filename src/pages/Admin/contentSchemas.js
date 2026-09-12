@@ -254,16 +254,10 @@ export const CONTENT_SCHEMAS = [
   {
     key: "chat_misses",
     label: "Unanswered",
-    singular: "Unanswered question",
-    endpoint: "/api/content?type=chat_misses",
-    listKey: "items",
-    itemKey: "item",
-    primary: "question",
-    secondary: "asked_at",
-    // Written by the chatbot, never by hand. The list is the content backlog:
-    // read it, add an FAQ that answers the question, then dismiss the entry.
-    readOnly: true,
-    fields: [],
+    // Not a table editor. Rows are written by the chatbot and leave by becoming
+    // FAQs or being dismissed, so UnansweredManager.jsx renders this tab instead
+    // of ContentManager.
+    view: "unanswered",
   },
 ];
 

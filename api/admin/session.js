@@ -1,4 +1,5 @@
 import { readSession, sessionsDisabled, SESSIONS_DISABLED_MESSAGE } from "../_lib/session.js";
+import { hasGeminiKey } from "../_lib/env.js";
 
 export default function handler(req, res) {
   if (req.method !== "GET") {
@@ -14,5 +15,11 @@ export default function handler(req, res) {
   }
 
   const session = readSession(req);
-  res.status(200).json({ authed: Boolean(session), email: session?.email || null });
+  res.status(200).json({
+    authed: Boolean(session),
+    email: session?.email || null,
+    // Lets the Unanswered tab hide "Draft with Gemini" rather than offer a
+    // button that can only fail. The key itself never leaves the server.
+    canDraft: Boolean(session) && hasGeminiKey,
+  });
 }

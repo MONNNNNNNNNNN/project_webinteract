@@ -268,6 +268,28 @@ mostly exact-term queries, where FTS is competitive and costs nothing per query.
   role can read or write it — so unanswered questions are visible as a coverage
   signal instead of silently vanishing. It also seeds FAQ rows that closed the
   biggest gaps that first run found.
+- **Unanswered questions become FAQs from the dashboard.**
+  `src/pages/Admin/UnansweredManager.jsx` renders the Unanswered tab. It groups
+  duplicate misses, most-asked first ("asked 4×"). **Answer** opens a form, and
+  publishing writes an FAQ and clears every copy of the question in one request
+  (`DELETE /api/content?type=chat_misses&ids=a,b,c`). FAQs are unioned live, so
+  the chatbot answers from the next message, with no rebuild.
+- **Gemini drafts an FAQ answer only from retrieval, never from its own
+  knowledge.** `POST /api/admin/draft-answer` runs `searchKnowledge()` exactly
+  as for a visitor and hands Gemini only those chunks. `DRAFT_PROMPT` in
+  `gemini.js` makes it write `[ADMIN: what is needed]` for any fact it cannot
+  find, instead of guessing. For "Where is the canteen?" the knowledge base has
+  nothing, so a free drafter would invent a building. `shared/faqDraft.js`
+  detects the placeholder. Publish stays disabled while one remains, and
+  `api/admin/faqs.js` refuses one on every POST/PUT, even from the plain FAQ tab
+  or a hand-made request. The button shows only when the session reports
+  `canDraft` (a session exists and `GEMINI_API_KEY` is set). All three Gemini
+  uses share `callGemini()`, which never throws and returns `{ text, reason }`.
+  That lets the draft endpoint tell the admin *why* (rate limit, timeout, empty)
+  where the chatbot just falls back silently.
+- **Vercel Hobby allows 12 functions; this uses 10.** chat, careers, content,
+  upload, and admin login/logout/session/faqs/rebuild-kb/draft-answer. Fold the
+  next endpoint into an existing one rather than add a file.
 
 Fallback ladder: no Supabase → six built-in facts, flagged `simulated: true`;
 nothing matched above the floor → an explicit "I don't know" plus contacts;
