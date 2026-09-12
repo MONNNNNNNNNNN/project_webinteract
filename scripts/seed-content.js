@@ -1,4 +1,4 @@
-// Re-seed the admin-editable content tables from the static modules in src/lib/.
+// Re-seed the admin-editable content tables from the static modules in shared/.
 //
 // The migrations in supabase/migrations/ carry the same seed data, but applying
 // them means pasting SQL into the Supabase editor, and that round trip mangled
@@ -15,18 +15,17 @@
 // dashboard to staff, tuition, the study plan or the elective tracks is lost.
 // site_courses is keyed by course code and is upserted in place.
 //
+// The rows come from staticRows() in shared/kbChunks.js — the same function the
+// chatbot's dry run builds from, so a seed and a knowledge build cannot disagree
+// about what the static content is. Re-run scripts/build-kb.js afterwards.
+//
 // Requires SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.
 
-import { STUDY_PLAN, ELECTIVE_COURSES } from "../shared/curriculumData.js";
-import { COURSE_DESCRIPTIONS } from "../shared/courseDescriptions.js";
-import { STUDENT_TYPES, FEE_BREAKDOWN } from "../shared/tuitionData.js";
-import { LECTURERS } from "../shared/staffData.js";
+import { staticRows } from "../shared/kbChunks.js";
 
 const APPLY = process.argv.includes("--apply");
 const URL = process.env.SUPABASE_URL;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-const PLACEHOLDER_CODE = /^(EN XX XXXX|XX XXXX|IC 011 10X|EN \[unclear\])$/;
 
 function headers(extra = {}) {
   return {
@@ -58,101 +57,8 @@ async function replaceAll(table, rows) {
   }
 }
 
-function courseIndex() {
-  const index = new Map();
-  const add = (c) => {
-    if (!PLACEHOLDER_CODE.test(c.code)) index.set(c.code, c);
-  };
-  STUDY_PLAN.forEach((y) => y.semesters.forEach((s) => s.courses.forEach(add)));
-  Object.values(ELECTIVE_COURSES).forEach((l) => l.forEach(add));
-  return index;
-}
-
-function build() {
-  const idx = courseIndex();
-
-  const courses = Object.entries(COURSE_DESCRIPTIONS).map(([code, d], i) => ({
-    code,
-    name: idx.get(code)?.name || code,
-    credits: idx.get(code)?.credits || null,
-    description_en: d.descriptionEn || "",
-    description_th: d.descriptionTh || "",
-    prerequisites: d.prerequisites || null,
-    sort_order: (i + 1) * 10,
-  }));
-
-  const staff = LECTURERS.map((l, i) => ({
-    name: l.name,
-    title: l.title || "",
-    education: l.education || "",
-    specialty: l.specialty || "",
-    photo_url: l.photo || null,
-    profile_url: l.profile || null,
-    room: l.room || null,
-    sort_order: (i + 1) * 10,
-  }));
-
-  const studentTypes = STUDENT_TYPES.map((s, i) => ({
-    id: s.id,
-    label: s.label,
-    semester_fee: s.semesterFee,
-    has_living_cost: s.hasLivingCost,
-    sort_order: (i + 1) * 10,
-  }));
-
-  const feeRows = [];
-  STUDENT_TYPES.forEach((s) =>
-    Object.entries(FEE_BREAKDOWN[s.id]).forEach(([period, list]) =>
-      list.forEach((r, i) =>
-        feeRows.push({
-          student_type_id: s.id,
-          period,
-          item: r.item,
-          item_type: r.type,
-          amount: r.amount,
-          excluded_from_total: Boolean(r.excludedFromTotal),
-          sort_order: (i + 1) * 10,
-        })
-      )
-    )
-  );
-
-  const studyPlan = [];
-  STUDY_PLAN.forEach((y) =>
-    y.semesters.forEach((sem) =>
-      sem.courses.forEach((c, i) =>
-        studyPlan.push({
-          year: y.year,
-          semester_name: sem.name,
-          total_accumulated: sem.totalAccumulated ?? null,
-          course_code: c.code,
-          course_name: c.name,
-          credits: c.credits || null,
-          course_type: c.type,
-          sort_order: (i + 1) * 10,
-        })
-      )
-    )
-  );
-
-  const electives = [];
-  Object.entries(ELECTIVE_COURSES).forEach(([track, list]) =>
-    list.forEach((c, i) =>
-      electives.push({
-        track,
-        course_code: c.code,
-        course_name: c.name,
-        credits: c.credits || null,
-        sort_order: (i + 1) * 10,
-      })
-    )
-  );
-
-  return { courses, staff, studentTypes, feeRows, studyPlan, electives };
-}
-
 async function main() {
-  const d = build();
+  const d = staticRows();
   const plan = [
     ["site_courses", d.courses, "upsert on code"],
     ["site_staff", d.staff, "replace"],
@@ -184,7 +90,7 @@ async function main() {
   await replaceAll("site_study_plan", d.studyPlan);
   await replaceAll("site_elective_courses", d.electives);
 
-  console.log("\n  written.");
+  console.log("\n  written. Now run node scripts/build-kb.js so the chatbot matches.");
 }
 
 main().catch((err) => {
