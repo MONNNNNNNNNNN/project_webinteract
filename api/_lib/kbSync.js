@@ -8,6 +8,8 @@
 // Writes go over PostgREST from Node, never through the SQL editor: pasting
 // seed SQL there once decoded UTF-8 as CP1252 and destroyed every Thai string.
 
+import { buildChunks } from "../../shared/kbChunks.js";
+
 // The chunk builders' input, by name -> the table it comes from.
 const TABLES = {
   courses: "site_courses",
@@ -110,4 +112,15 @@ export function countBySource(chunks) {
     acc[c.source] = (acc[c.source] || 0) + 1;
     return acc;
   }, {});
+}
+
+/**
+ * The whole rebuild: read the tables, build, write. One function for the
+ * automatic rebuild after an admin save (api/content.js), the Retry button
+ * (api/admin/rebuild-kb.js) and the terminal (scripts/build-kb.js).
+ */
+export async function rebuildKnowledge({ url, key, signal }) {
+  const chunks = buildChunks(await readContentRows({ url, key, signal }));
+  const { upserted, deleted } = await syncChunks({ url, key, chunks, signal });
+  return { upserted, deleted, bySource: countBySource(chunks) };
 }

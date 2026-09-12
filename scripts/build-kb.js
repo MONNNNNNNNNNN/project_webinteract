@@ -2,10 +2,9 @@
 // supabase/migrations/0010_kb_chunks.sql).
 //
 // Reads the site_* content tables — what the pages actually render — turns
-// them into retrievable chunks, and upserts them into kb_chunks. It used to
-// read shared/*.js instead, so an admin's correction reached the page but never
-// the chatbot. The dashboard's "Rebuild chatbot knowledge" button runs the same
-// code (api/admin/rebuild-kb.js); this is the terminal equivalent.
+// them into retrievable chunks, and upserts them into kb_chunks. Admin saves
+// already do this automatically (api/content.js); run this after writing the
+// tables some other way, which in practice means after scripts/seed-content.js.
 //
 // Run:  node scripts/build-kb.js            site_* tables -> kb_chunks
 //       node scripts/build-kb.js --dry-run  builds from shared/ and counts, no network
@@ -15,22 +14,20 @@
 // migration.
 
 import { buildChunks, staticRows } from "../shared/kbChunks.js";
-import { readContentRows, syncChunks, countBySource } from "../api/_lib/kbSync.js";
+import { rebuildKnowledge, countBySource } from "../api/_lib/kbSync.js";
 
 const DRY_RUN = process.argv.includes("--dry-run");
 
-function report(chunks) {
-  Object.entries(countBySource(chunks))
-    .sort(([a], [b]) => a.localeCompare(b))
-    .forEach(([source, n]) => console.log(`  ${source.padEnd(16)} ${n}`));
-  console.log(`  ${"TOTAL".padEnd(16)} ${chunks.length}`);
+function report(bySource) {
+  const entries = Object.entries(bySource).sort(([a], [b]) => a.localeCompare(b));
+  entries.forEach(([source, n]) => console.log(`  ${source.padEnd(16)} ${n}`));
+  console.log(`  ${"TOTAL".padEnd(16)} ${entries.reduce((sum, [, n]) => sum + n, 0)}`);
 }
 
 async function main() {
   if (DRY_RUN) {
-    const chunks = buildChunks(staticRows());
     console.log("Chunks built from shared/:");
-    report(chunks);
+    report(countBySource(buildChunks(staticRows())));
     console.log("\n--dry-run: nothing read or written.");
     return;
   }
@@ -41,11 +38,9 @@ async function main() {
     throw new Error("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set (or pass --dry-run).");
   }
 
-  const chunks = buildChunks(await readContentRows({ url, key }));
+  const { upserted, deleted, bySource } = await rebuildKnowledge({ url, key });
   console.log("Chunks built from the site_* tables:");
-  report(chunks);
-
-  const { upserted, deleted } = await syncChunks({ url, key, chunks });
+  report(bySource);
   console.log(`\nUpserted ${upserted} chunks, deleted ${deleted} stale.`);
 }
 

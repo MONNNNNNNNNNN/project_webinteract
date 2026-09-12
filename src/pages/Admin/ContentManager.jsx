@@ -81,6 +81,9 @@ export default function ContentManager({ schema }) {
   const [values, setValues] = useState(() => emptyValues(schema));
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
+  // Result of the automatic chatbot rebuild the server runs after a write to a
+  // table the chatbot reads. null when the response carried none.
+  const [kbNotice, setKbNotice] = useState(null); // { ok: true|false|null, text }
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -152,6 +155,7 @@ export default function ContentManager({ schema }) {
 
     setSaving(true);
     setError("");
+    setKbNotice(null);
     try {
       const res = await fetch(schema.endpoint, {
         method: editingId ? "PUT" : "POST",
@@ -163,6 +167,7 @@ export default function ContentManager({ schema }) {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || `Save failed (${res.status})`);
+      noteKb(data.kb);
       cancelEdit();
       await reload();
     } catch (err) {
@@ -176,14 +181,38 @@ export default function ContentManager({ schema }) {
     // There is no undo: a deleted fee row or course is gone.
     if (!window.confirm(`Delete this ${schema.singular.toLowerCase()}? This cannot be undone.`)) return;
     setError("");
+    setKbNotice(null);
     try {
       const res = await fetch(withParam(schema.endpoint, "id", id), { method: "DELETE" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || `Delete failed (${res.status})`);
+      noteKb(data.kb);
       if (editingId === id) cancelEdit();
       await reload();
     } catch (err) {
       setError(err.message);
+    }
+  }
+
+  function noteKb(kb) {
+    if (!kb) return;
+    setKbNotice(
+      kb.ok
+        ? { ok: true, text: "Saved. The chatbot is updated too." }
+        : { ok: false, text: `Saved, but the chatbot could not update (${kb.error}).` }
+    );
+  }
+
+  // The save itself went through; this only brings the chatbot's copy along.
+  async function retryRebuild() {
+    setKbNotice({ ok: null, text: "Updating the chatbot…" });
+    try {
+      const res = await fetch("/api/admin/rebuild-kb", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || data.error || `Rebuild failed (${res.status})`);
+      setKbNotice({ ok: true, text: "The chatbot is updated." });
+    } catch (err) {
+      setKbNotice({ ok: false, text: `The chatbot could not update (${err.message}).` });
     }
   }
 
@@ -197,6 +226,26 @@ export default function ContentManager({ schema }) {
 
       {error && (
         <p className="mb-4 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-400">{error}</p>
+      )}
+
+      {kbNotice && (
+        <p
+          role="status"
+          className={`mb-4 text-sm ${
+            kbNotice.ok === false
+              ? "text-amber-600 dark:text-amber-400"
+              : kbNotice.ok
+                ? "text-emerald-600 dark:text-emerald-400"
+                : "text-slate-500"
+          }`}
+        >
+          {kbNotice.text}
+          {kbNotice.ok === false && (
+            <button onClick={retryRebuild} className="ml-2 font-medium underline hover:no-underline">
+              Retry
+            </button>
+          )}
+        </p>
       )}
 
       <form

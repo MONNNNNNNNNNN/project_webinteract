@@ -105,8 +105,9 @@ admin dashboard. Editing a file here changes only the fallback until someone
 re-seeds, and re-seeding overwrites admin edits.
 
 The chatbot's 119 chunks are built from the **tables** by `kbChunks.js`, so they
-match what the pages show. Press **Rebuild chatbot knowledge** in the dashboard
-after editing fees, courses, the study plan or staff.
+match what the pages show. Saving in the admin dashboard rebuilds them
+automatically. If that rebuild fails, the save still stands and the tab offers
+a Retry.
 
 > Migrations `0012`–`0014` still reference these as `src/lib/*.js` in their
 > comments. Migrations are immutable once applied, so those comments were left
@@ -123,8 +124,8 @@ node scripts/prune-media.js --apply   delete them
 ```
 
 All need `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (except `--dry-run`).
-After seeding, run `build-kb.js` (or press Rebuild in the dashboard) so the
-chatbot matches.
+After seeding, run `build-kb.js` so the chatbot matches. Seeding writes the
+tables directly, so the dashboard's automatic rebuild never sees it.
 
 **Seed with `seed-content.js`, not by pasting migration SQL.** Pasting the
 `INSERT`s into the Supabase SQL editor once mangled every non-ASCII character —
