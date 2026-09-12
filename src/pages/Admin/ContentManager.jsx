@@ -173,6 +173,11 @@ export default function ContentManager({ schema }) {
   }
 
   async function remove(id) {
+    // There is no undo: a deleted fee row or course is gone. Dismissing a
+    // chatbot miss is the exception — losing one costs nothing.
+    if (!schema.readOnly && !window.confirm(`Delete this ${schema.singular.toLowerCase()}? This cannot be undone.`)) {
+      return;
+    }
     setError("");
     try {
       const res = await fetch(withParam(schema.endpoint, "id", id), { method: "DELETE" });

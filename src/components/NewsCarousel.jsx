@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
+import MediaView from "./MediaView.jsx";
 
 export default function NewsCarousel({ items, intervalMs = 5000 }) {
   const [index, setIndex] = useState(0);
@@ -49,17 +50,16 @@ export default function NewsCarousel({ items, intervalMs = 5000 }) {
           className="h-80 w-full cursor-grab touch-pan-y select-none overflow-hidden active:cursor-grabbing sm:h-[28rem]"
         >
           <AnimatePresence mode="wait">
-            <motion.img
-              key={active.image}
-              src={active.image}
-              alt={active.title}
+            <motion.div
+              key={active.id || active.image}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.4 }}
-              draggable={false}
-              className="h-full w-full object-cover object-top"
-            />
+              className="h-full w-full"
+            >
+              <MediaView src={active.image} alt={active.title} className="h-full w-full object-cover object-top" />
+            </motion.div>
           </AnimatePresence>
         </motion.div>
 
@@ -128,7 +128,7 @@ export default function NewsCarousel({ items, intervalMs = 5000 }) {
               className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white dark:bg-slate-900"
             >
               <div className="relative">
-                <img src={active.image} alt={active.title} className="w-full object-cover object-top" />
+                <MediaView src={active.image} alt={active.title} className="w-full object-cover object-top" controls />
                 <button
                   onClick={() => setOpen(false)}
                   className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70"

@@ -6,7 +6,9 @@ export default function ChatWidget() {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState([
-    { role: "assistant", text: "Hi! Ask me anything about the DME program.", simulated: true },
+    // Not simulated: it is a fixed greeting, not a fallback answer, and flagging
+    // it put a "simulated" badge on the first thing every visitor saw.
+    { role: "assistant", text: "Hi! Ask me anything about the DME program.", simulated: false },
   ]);
   const [loading, setLoading] = useState(false);
 
@@ -65,7 +67,10 @@ export default function ChatWidget() {
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.2, ease: "easeOut" }}
-                    className={`rounded-lg px-3 py-2 text-sm ${
+                    // pre-line: api/chat.js separates the answer, "Related:"
+                    // and the contact line with blank lines, which HTML would
+                    // otherwise collapse into one run-on paragraph.
+                    className={`whitespace-pre-line rounded-lg px-3 py-2 text-sm ${
                       m.role === "user"
                         ? "self-end bg-dme-orange text-white"
                         : "self-start bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200"
