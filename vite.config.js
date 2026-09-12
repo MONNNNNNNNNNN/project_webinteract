@@ -4,49 +4,15 @@ import path from "node:path";
 import fs from "node:fs";
 import { pathToFileURL } from "node:url";
 
-// public/cdlc-sim/ is empty until the 3D build is dropped in (see
-// docs/3d-integration-handoff.md). Without this, Vite's SPA history
-// fallback serves index.html for the missing /cdlc-sim/index.html request,
-// so the ThreeDWorld page's iframe recursively loads the whole site.
-function cdlcSimNotFoundMiddleware() {
-  return {
-    name: "cdlc-sim-not-found",
-    configureServer(server) {
-      server.middlewares.use((req, res, next) => {
-        if (!req.url.startsWith("/cdlc-sim/")) return next();
-        const filePath = path.join(process.cwd(), "public", req.url.split("?")[0]);
-        if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) return next();
-        res.statusCode = 404;
-        res.end("Not found");
-      });
-    },
-  };
-}
-
-// Resolve a request path to a handler file the way Vercel does: an exact match
-// first, then a single dynamic segment.
+// Resolve a request path to a handler file: /api/admin/login -> api/admin/login.js.
 //
-// Without the dynamic branch, api/content/[type].js would never be reached under
-// `vite dev` — the exact lookup for api/content/projects.js fails, the middleware
-// falls through, and the SPA history fallback answers /api/content/projects with
-// index.html. That failure is silent and looks like a broken fetch.
+// Exact files only, on purpose. Vercel did not route a dynamic segment
+// (api/content/[type].js) in production even though it worked here, so the
+// content endpoint moved to ?type= — see the note in api/content.js. Emulating
+// dynamic routes in dev would only let the next one pass locally and fail live.
 function resolveApiHandler(segments) {
-  const exact = path.join(process.cwd(), "api", ...segments) + ".js";
-  if (fs.existsSync(exact) && fs.statSync(exact).isFile()) {
-    return { filePath: exact, params: {} };
-  }
-
-  const dir = path.join(process.cwd(), "api", ...segments.slice(0, -1));
-  if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) return null;
-
-  const dynamic = fs.readdirSync(dir).find((f) => /^\[.+\]\.js$/.test(f));
-  if (!dynamic) return null;
-
-  const paramName = dynamic.match(/^\[(.+)\]\.js$/)[1];
-  return {
-    filePath: path.join(dir, dynamic),
-    params: { [paramName]: segments[segments.length - 1] },
-  };
+  const filePath = path.join(process.cwd(), "api", ...segments) + ".js";
+  return fs.existsSync(filePath) && fs.statSync(filePath).isFile() ? filePath : null;
 }
 
 // Dev-only middleware that runs api/*.js (Vercel serverless function
@@ -63,19 +29,17 @@ function vercelApiDevMiddleware() {
         const segments = pathname.split("/").filter(Boolean).slice(1); // drop "api"
         if (segments.some((s) => !/^[a-zA-Z0-9_-]+$/.test(s))) return next();
 
-        const resolved = resolveApiHandler(segments);
-        if (!resolved) return next();
+        const filePath = resolveApiHandler(segments);
+        if (!filePath) return next();
 
         let handlerModule;
         try {
-          handlerModule = await import(`${pathToFileURL(resolved.filePath).href}?t=${Date.now()}`);
+          handlerModule = await import(`${pathToFileURL(filePath).href}?t=${Date.now()}`);
         } catch {
           return next();
         }
 
-        // Route params merge with the query string, matching Vercel, where
-        // req.query carries both.
-        req.query = { ...Object.fromEntries(new URLSearchParams(search || "")), ...resolved.params };
+        req.query = Object.fromEntries(new URLSearchParams(search || ""));
 
         if (["POST", "PUT", "DELETE", "PATCH"].includes(req.method)) {
           const chunks = [];
@@ -123,6 +87,6 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
-    plugins: [react(), vercelApiDevMiddleware(), cdlcSimNotFoundMiddleware()],
+    plugins: [react(), vercelApiDevMiddleware()],
   };
 });

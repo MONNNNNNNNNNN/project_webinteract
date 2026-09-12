@@ -2,7 +2,7 @@
 //
 // ContentManager.jsx renders entirely from these, so adding a domain is a schema
 // plus an endpoint — not another screen. The FAQ endpoint predates the generic
-// /api/content/[type] handler and wraps its payload differently, which is what
+// /api/content?type= handler and wraps its payload differently, which is what
 // listKey/itemKey exist to absorb.
 
 export const CONTENT_SCHEMAS = [

@@ -1,23 +1,34 @@
 # shared/
 
-Plain data modules, imported by **both** the frontend and the ops scripts.
-No React, no server code, no side effects — just exported constants and two
-pure formatting helpers.
+Modules imported by **both** the frontend and the ops/server code. No React, no
+network, no side effects.
 
 They live outside `src/` and `api/` because they are consumed from both
 directions, and burying them in `src/lib/` hid that. `src/lib/` is now
 browser-only.
 
-Each file does three jobs:
+| file | job |
+|---|---|
+| `curriculumData.js`, `courseDescriptions.js`, `tuitionData.js`, `staffData.js` | seed data and runtime fallback |
+| `locations.js` | the rooms, for Contact (map) and 3D World (models) |
+| `kbChunks.js` | the chatbot's chunk builder, plus `staticRows()` |
+
+The four data files do two jobs:
 
 | job | who reads it |
 |---|---|
-| seed the Postgres tables | `scripts/seed-content.js` |
+| seed the Postgres tables | `scripts/seed-content.js`, via `staticRows()` |
 | runtime fallback when Supabase is unreachable | `src/pages/*.jsx` |
-| source of the chatbot's 119 knowledge chunks | `scripts/build-kb.js` |
 
-**After editing anything here, re-run `node scripts/build-kb.js`** — otherwise
-the pages update but the chatbot keeps answering from the previous version.
+**The live site does not render these files. It renders the `site_*` tables.**
+Editing a file here changes the fallback only. Live content is changed in the
+admin dashboard, and re-seeding from these files overwrites those edits.
+
+The chatbot's 119 knowledge chunks are built from the tables by `kbChunks.js`,
+so they match the pages. Press **Rebuild chatbot knowledge** in the dashboard
+(or run `node scripts/build-kb.js`) after editing fees, courses, the study plan
+or staff. `build-kb.js --dry-run` builds from these files instead, for a count
+with no network.
 
 `curriculumData.js` marks a few course codes `[unclear]` where the source
 screenshot was obscured. Those markers are load-bearing: they mean "verify

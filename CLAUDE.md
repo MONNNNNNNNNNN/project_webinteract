@@ -54,42 +54,47 @@ build) and already has fallback plans baked in.
 
 Two free-tier constraints worth remembering (from the original proposal, section 7):
 Vercel Hobby functions have a 10-second execution timeout (which is why the
-chatbot answers by retrieval rather than by calling a model — see below), and
-Supabase free-tier projects pause
-after 7 days of inactivity (manual restart needed before a demo after a break).
+chatbot retrieves first and treats model phrasing as optional, inside an 8.5s
+budget — see below), and Supabase free-tier projects pause after 7 days of
+inactivity (manual restart needed before a demo after a break).
 
 ## Folder structure
 
 ```
 api/                        Vercel serverless functions
   careers.js                 JSearch listings, cache-first (see Job caching below)
-  chat.js                    ChatWidget answers via Claude, grounded in kb_chunks
-  admin/                     login / logout / session / faqs CRUD
-  content/[type].js          Generic CRUD over admin-editable tables (see below)
-  _lib/                      env.js (key flags), session.js (HMAC cookie),
-                             jobCache.js (Supabase job cache), mockData.js,
-                             knowledgeBase.js (chatbot retrieval)
-scripts/build-kb.js         Rebuilds the chatbot knowledge base from shared/
+  chat.js                    ChatWidget: retrieves from kb_chunks, optionally
+                             phrased by Gemini (see Chatbot KB below)
+  content.js                 Generic CRUD over admin-editable tables, ?type=
+  upload.js                  Signed one-shot upload URL for the site-media bucket
+  admin/                     login / logout / session / faqs CRUD / rebuild-kb
+  _lib/                      env.js (key flags), session.js (HMAC cookie + admin
+                             allowlist), jobCache.js (Supabase job cache),
+                             mockData.js, knowledgeBase.js (retrieval),
+                             gemini.js (optional phrasing), kbSync.js (writes
+                             kb_chunks)
+shared/                     Static content modules (seed + page fallback) and
+                             kbChunks.js, the chatbot's chunk builder
+scripts/                    build-kb.js (site_* tables -> kb_chunks),
+                             seed-content.js, prune-media.js
 src/
   pages/                    One file per route
     Admin/                  Admin routes (live — Supabase Auth + session cookie)
       ContentManager.jsx      Generic table editor, driven by contentSchemas.js
       contentSchemas.js        One schema entry per admin-editable domain
-  components/               Navbar, Footer, ChatWidget, ComingSoon, etc.
+  components/               Navbar, Footer, ChatWidget, MediaView, etc.
   lib/                      Browser-side helpers only. careersCache.js
                              (localStorage job cache), contentClient.js
-                             (useContent() hook), topicIcons.js (the site's icon
-                             vocabulary — see Icons below). The static data
-                             modules these pages fall back to live in shared/,
-                             not here.
+                             (useContent() hook), media.js (image vs video by
+                             URL), topicIcons.js (the site's icon vocabulary —
+                             see Icons below). The static data modules these
+                             pages fall back to live in shared/, not here.
 supabase/
-  migrations/                0001-0015: programs, courses, student_status,
+  migrations/                0001-0016: programs, courses, student_status,
                              fee_detail, faqs, job_cache, job_fetch_budget,
                              kb_chunks, site_projects/news/staff/tuition/curriculum,
-                             search fixes + chat_misses (see Chatbot KB below)
-  APPLY_ALL.sql               Generated bundle of a migration range for pasting into
-                             the Supabase SQL Editor by hand. Regenerate by hand —
-                             nothing keeps it in sync with new migration files.
+                             search fixes + chat_misses (see Chatbot KB below),
+                             the site-media Storage bucket
 docs/reference/             Extracted source data — read these instead of the PDFs
   curriculum-data.md         Full 4-year study plan + 4 elective-track course lists
   tuition-data.md            Full fee breakdown per student type / period
@@ -133,9 +138,18 @@ no env vars needed.
   key at all — see Chatbot knowledge base below
 
 **Live against Supabase:** `Admin/AdminLogin.jsx` + `Admin/AdminDashboard.jsx`
-authenticate through Supabase Auth and persist FAQs to Postgres. The demo
+authenticate through Supabase Auth and persist content to Postgres. The demo
 credential path in `api/admin/login.js` only engages when Supabase env vars are
 absent, so it's unreachable in production.
+
+**Supabase Auth is not the admin check — `ADMIN_EMAILS` is.** A password grant
+only proves who someone is, and sign-ups are open on the project, so without the
+allowlist any registered account got full write access. `isAdminEmail()` in
+`api/_lib/session.js` runs at login *and* on every request, so removing an
+address revokes its live sessions. In production and preview, an unset
+`ADMIN_EMAILS` (or `SESSION_SECRET`) makes every admin route fail closed with 503.
+Local dev with no list accepts any account. Closing sign-ups in the Supabase
+dashboard is the second layer, not a substitute.
 
 ## Job caching (Career Explorer)
 
@@ -164,7 +178,16 @@ call, so listings are cached in two places rather than fetched per page view:
   budget can't be read the code fails *closed* — Supabase being down means the
   result couldn't be cached anyway, so a live call would be quota spent for
   nothing.
-- **Browser** — `shared/careersCache.js` persists each interest's list to
+- **Paced, not just capped** — `api/careers.js` passes `pacedBudgetLimit()`
+  (`ceil(170 × day / daysInMonth) + 5`) as the function's `p_limit` instead of
+  170. A cap alone let the refresh button spend 30 calls an hour and empty the
+  month in about six hours. Pacing caps any burst at the day's share. Scheduled use
+  (5/day) stays under the paced limit on every day of every month (checked over 36
+  months), so the TTL path is never blocked.
+- **`interest` is a closed set** — anything outside `INTEREST_QUERY_TERMS` gets
+  400. Each interest is its own bucket, and an unseen bucket has no cache, so an
+  open value let `?interest=a1`, `a2`, … each spend a live call.
+- **Browser** — `src/lib/careersCache.js` persists each interest's list to
   localStorage (30 min fresh, discarded after 7 days) so a reload or a return
   visit paints instantly and, inside the fresh window, makes no request at all.
 
@@ -180,12 +203,18 @@ course, lecturer, or fee row. Retrieval is Postgres full-text search — **no
 embeddings, no pgvector, no embedding provider.** The corpus is ~120 chunks of
 mostly exact-term queries, where FTS is competitive and costs nothing per query.
 
-- **Ingestion** — `node scripts/build-kb.js` reads the `shared/*.js` data
-  modules and upserts chunks keyed on a stable derived id (`course:EN 843 402`),
-  deleting any row whose id it no longer produces. Idempotent; `--dry-run` builds
-  and counts without touching the network. Needs `SUPABASE_SERVICE_ROLE_KEY`.
-  **Re-run it after editing any file in `shared/`** — nothing does this
-  automatically.
+- **Ingestion reads the tables the pages render.** `shared/kbChunks.js` builds
+  chunks from `site_*` rows. They are keyed on a stable derived id
+  (`course:EN 843 402`), and any row whose id is no longer produced is deleted.
+  Two entry points run the same code (`api/_lib/kbSync.js`):
+  - the dashboard's **Rebuild chatbot knowledge** button (`POST /api/admin/rebuild-kb`, ~0.5s read)
+  - `node scripts/build-kb.js` from a terminal.
+
+  Both are idempotent. `--dry-run` builds from `shared/` via `staticRows()` with no
+  network. It used to read `shared/*.js` for real, so an admin's fee correction
+  reached the Tuition page but never the chatbot. **After editing fees, courses,
+  the study plan or staff, press Rebuild** — nothing triggers it automatically.
+  An all-empty read is refused ("never seeded"). One empty table is honoured.
 - **Two matchers, because Thai and English cannot share one.** English uses
   `to_tsvector('english', …)` + `ts_rank_cd` with normalization flag 32, which
   bounds the score to 0..1. Thai uses `pg_trgm`, because Postgres ships no Thai
@@ -201,10 +230,10 @@ mostly exact-term queries, where FTS is competitive and costs nothing per query.
 - **`faqs` is unioned in at query time, not copied.** The admin dashboard edits
   those rows, so a copy would go stale on the first correction. This way an admin
   edit changes the chatbot immediately — no re-ingest, no redeploy.
-- **Page copy is duplicated into `scripts/build-kb.js`.** The `facts`, `channels`,
-  and curriculum-overview prose live in JSX, which a plain Node script cannot
-  import. If that page copy changes, the script must be updated by hand; nothing
-  catches the drift.
+- **Page copy is duplicated into `shared/kbChunks.js`.** The `facts`, `channels`,
+  and curriculum-overview prose live in JSX, which a plain Node module cannot
+  import. If that page copy changes, `PAGE_CHUNKS` must be updated by hand;
+  nothing catches the drift.
 - **Generation is optional and sits in front of retrieval, never instead of it.**
   With `GEMINI_API_KEY` set, the retrieved chunks are handed to Gemini
   (`gemini-3.5-flash-lite` by default, free tier) to be phrased as prose. The
@@ -215,12 +244,13 @@ mostly exact-term queries, where FTS is competitive and costs nothing per query.
   carries `generated: false`. Every path out of `api/chat.js` is a real answer;
   the model only changes how it reads. Budget is 8.5s total against Vercel's 10s
   kill, retrieval first, model gets the remainder, skipped below 2s left.
-- **Retrieval alone still works.** `api/chat.js` returns the best-matching
-  chunk's text verbatim; there is no generation step. That means it cannot invent
-  a fee, a course code, or a lecturer, and it needs no API key, no budget cap, and
-  no timeout juggling — measured 0.1–1.7s per answer. The cost is real: it cannot
-  merge two chunks, cannot answer "compare the Mekong and international rates",
-  and reads like documentation rather than conversation.
+- **Retrieval alone still works.** With no `GEMINI_API_KEY` (or Gemini down),
+  `api/chat.js` returns the best-matching chunk's text verbatim. That path cannot
+  invent a fee, a course code, or a lecturer — measured 0.1–1.7s per answer. The
+  cost: it cannot merge two chunks or answer "compare the Mekong and international
+  rates", and it reads like documentation rather than conversation. With a key,
+  a weak first retrieval (below `STRONG_SCORE`) also gets one model-rewritten
+  retry. The rewrite is kept only if it scores better.
 - **Confidence floor.** `MIN_SCORE = 0.12`. Below it, `search_kb` matched on an
   incidental shared word rather than the subject, so the reply is "I don't have
   that" plus the official contacts — better than confidently pasting an unrelated
@@ -239,11 +269,11 @@ mostly exact-term queries, where FTS is competitive and costs nothing per query.
   signal instead of silently vanishing. It also seeds FAQ rows that closed the
   biggest gaps that first run found.
 
-If a model is added later it belongs *in front of* this, not instead of it:
-retrieval already works, and this stays as the fallback for when the model is
-unreachable. Fallback ladder today: no Supabase → six built-in facts, flagged
-`simulated: true`; nothing matched above the floor → an explicit "I don't know"
-plus contacts. A user never sees a 500.
+Fallback ladder: no Supabase → six built-in facts, flagged `simulated: true`;
+nothing matched above the floor → an explicit "I don't know" plus contacts;
+matched but Gemini unavailable → the chunk verbatim. A user never sees a 500.
+Replies separate paragraphs with blank lines; `ChatWidget` renders them with
+`whitespace-pre-line`.
 
 ## Icons
 
@@ -274,7 +304,9 @@ Content that used to be a hardcoded array in a page is now a Supabase table the
 admin dashboard can edit. Migrated so far: Student Projects and the Home news
 carousel (`0011`), the lecturer directory (`0012`), tuition (`0013`), and the
 curriculum — courses, study plan, elective tracks (`0014`). That is every
-content domain; `shared/*.js` now serves only as seed and fallback.
+content domain; `shared/*.js` now serves only as seed and fallback. Editing a
+file in `shared/` changes nothing on the live site until someone re-seeds, and
+re-seeding overwrites admin edits. Change live content in the dashboard.
 
 `grandTotal()` in `shared/tuitionData.js` now takes `(rows, period)` rather than
 `(statusId, period)`, so one function serves both the static `FEE_BREAKDOWN` and
@@ -286,23 +318,32 @@ because these are figures a prospective student budgets against.
 - **The static array is still the source of truth for the seed and the runtime
   fallback.** `STATIC_PROJECTS` in `StudentProjects.jsx` and `STATIC_NEWS` in
   `Home.jsx` are still imported and still render first paint. `useContent()`
-  (`shared/contentClient.js`) swaps in database rows only when the response is
+  (`src/lib/contentClient.js`) swaps in database rows only when the response is
   authoritative. Supabase free-tier projects pause after 7 days idle, so a paused
   project degrades to the site as built rather than to a blank page. Do not delete
   those arrays; if you edit one, update migration `0011` to match.
 - **`simulated: true` means "not authoritative".** The client keeps its fallback.
   An authoritative empty list (`simulated: false, items: []`) *is* honoured — an
   admin who deleted every row meant it.
-- **One endpoint, not one per table.** `api/content/[type].js` maps `type` through
-  a whitelist to a table name and an allowed-column list. The path segment is
-  never interpolated into a query, and unknown types are rejected before a request
-  is built. Adding a domain is an entry there plus a schema in
+- **One endpoint, not one per table.** `api/content.js?type=…` maps `type` through
+  a whitelist to a table name and an allowed-column list. It is never
+  interpolated into a query, and unknown types are rejected before a request is
+  built. It was `api/content/[type].js` once; that worked under `vite dev`, but
+  Vercel never routed the dynamic segment and served `index.html` with a 200
+  instead. The dev middleware now resolves exact files only, so the next dynamic
+  route fails locally too. Adding a domain is an entry there plus a schema in
   `src/pages/Admin/contentSchemas.js` — the admin UI renders itself from that.
+- **The form's row key is locked while editing.** `ContentManager` sends
+  `{ ...values, id: editingId }` and renders the `idField` input read-only. The
+  reverse spread let a student type's editable Key field redirect the PUT, which
+  rewrote a *different* row. Deletes ask for confirmation.
 - **Icons are names, not components.** A lucide component cannot round-trip
   through Postgres, so rows carry `icon_name` and `StudentProjects.jsx` resolves it
-  through an explicit map. Unknown names render no icon rather than crashing.
-- **Images are URL strings.** Vercel's runtime filesystem is read-only; there is no
-  upload path.
+  through an explicit map. Unknown names fall back to the category's icon.
+- **Media are URL strings — image or video in the same column.** Nothing records
+  which, so `MediaView` picks `<img>` or `<video>` from the extension
+  (`src/lib/media.js`). Every public page rendered `<img>` before, so an uploaded
+  video showed as a broken image.
 - **Admin media uploads go browser -> Supabase Storage, not through Vercel.**
   `api/upload.js` checks the admin session and returns a one-shot signed URL for
   the `site-media` bucket; the browser PUTs the file straight there. Routing the
@@ -312,7 +353,9 @@ because these are figures a prospective student budgets against.
   Filenames are generated, never taken from the client, and the extension comes
   from the validated MIME type rather than the supplied name. Limits: 50MB, and
   JPG/PNG/WebP/GIF/AVIF/MP4/WebM/MOV, enforced both in the endpoint and on the
-  bucket. Free-tier Storage is 1GB total, so video will consume it quickly.
+  bucket. The bucket was dashboard-only config until `0016` (values read back
+  from the live project). Free-tier Storage is 1GB total, so video will consume it
+  quickly.
 - **Uploads outlive the rows that point at them.** A file reaches Storage the
   moment it is picked; the row is written only on Save. Picking a photo and then
   changing your mind leaves an orphan through the ordinary flow, not just by
@@ -350,16 +393,21 @@ because these are figures a prospective student budgets against.
   `api/admin/faqs.js` still has that quirk — under `vite dev` it hands out id
   `faq-7` on every create.
 
-`vite.config.js` also resolves Vercel-style dynamic routes (`api/content/[type].js`)
-in dev. Without that, the exact-file lookup misses, the middleware falls through,
-and the SPA history fallback answers `/api/content/projects` with `index.html` —
-a silent failure that looks like a broken fetch.
-
 ## Environment variables
 
 See `.env.example`. Nothing is required for local dev — every page renders
 without any env vars set, falling back to simulated listings / the hardcoded FAQ
 where a provider key is missing. `JSEARCH_API_KEY` and the Supabase trio are
-wired and live when present. The chatbot needs no provider key — it answers by
-retrieval, not generation. Note `hasSupabaseAdmin` requires `SUPABASE_ANON_KEY` as well as
-the service-role key, because the cache reads go through the anon role.
+wired and live when present. `GEMINI_API_KEY` is optional: without it the chatbot
+answers verbatim from retrieval. Note `hasSupabaseAdmin` requires
+`SUPABASE_ANON_KEY` as well as the service-role key, because the cache reads go
+through the anon role.
+
+**Required in production and preview:** `SESSION_SECRET` and `ADMIN_EMAILS`.
+Without either, every admin route fails closed with 503. `.env.example` does not
+list `ADMIN_EMAILS` yet (the file is edit-protected for Claude). Add it by hand.
+
+The Supabase keys are the new format (`sb_publishable_…` / `sb_secret_…`), not
+JWTs; the gateway mints a short-lived JWT per request. One parallel read once got
+a transient `PGRST303 "JWT issued at future"` (gateway clock skew). It did not
+reproduce over 32 further parallel requests. Retry before debugging.

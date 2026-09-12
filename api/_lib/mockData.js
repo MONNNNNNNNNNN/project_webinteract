@@ -1,6 +1,6 @@
-// Simulated data — used when no live provider key is configured
-// (ANTHROPIC_API_KEY / JSEARCH_API_KEY). Facts distilled from
-// shared/curriculumData.js and shared/tuitionData.js.
+// Simulated data — the chatbot's six built-in facts when Supabase is not
+// configured, and Career Explorer's listings when JSEARCH_API_KEY is not.
+// Facts distilled from shared/curriculumData.js and shared/tuitionData.js.
 
 export const FAQ_FACTS = [
   {
