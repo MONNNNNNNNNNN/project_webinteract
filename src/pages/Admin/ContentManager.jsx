@@ -173,11 +173,8 @@ export default function ContentManager({ schema }) {
   }
 
   async function remove(id) {
-    // There is no undo: a deleted fee row or course is gone. Dismissing a
-    // chatbot miss is the exception — losing one costs nothing.
-    if (!schema.readOnly && !window.confirm(`Delete this ${schema.singular.toLowerCase()}? This cannot be undone.`)) {
-      return;
-    }
+    // There is no undo: a deleted fee row or course is gone.
+    if (!window.confirm(`Delete this ${schema.singular.toLowerCase()}? This cannot be undone.`)) return;
     setError("");
     try {
       const res = await fetch(withParam(schema.endpoint, "id", id), { method: "DELETE" });
@@ -195,22 +192,13 @@ export default function ContentManager({ schema }) {
       <p className="mb-4 text-xs text-slate-500">
         {simulated
           ? `Simulated store — ${schema.label} changes reset when the server restarts (Supabase isn't configured).`
-          : schema.readOnly
-            ? `Logged by the chatbot. ${schema.label} entries are removed only when you dismiss them.`
-            : `Persisted to Supabase — ${schema.label} changes are saved for real.`}
+          : `Persisted to Supabase — ${schema.label} changes are saved for real.`}
       </p>
 
       {error && (
         <p className="mb-4 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-400">{error}</p>
       )}
 
-      {schema.readOnly ? (
-        <p className="mb-6 rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600 shadow-sm dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-400 dark:shadow-none">
-          Questions visitors asked that the chatbot could not answer. Each one is a
-          gap in the content. Add an FAQ that answers it — the chatbot picks that
-          up immediately, with no redeploy — then dismiss the entry here.
-        </p>
-      ) : (
       <form
         onSubmit={save}
         className="mb-6 flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/40 dark:shadow-none"
@@ -248,7 +236,6 @@ export default function ContentManager({ schema }) {
           )}
         </div>
       </form>
-      )}
 
       {loading ? (
         <p className="text-sm text-slate-500">Loading…</p>
@@ -267,19 +254,17 @@ export default function ContentManager({ schema }) {
                   <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{item[schema.secondary]}</p>
                 </div>
                 <div className="flex shrink-0 gap-3 text-xs">
-                  {!schema.readOnly && (
-                    <button
-                      onClick={() => startEdit(item)}
-                      className="text-slate-500 hover:text-dme-orange dark:text-slate-400"
-                    >
-                      Edit
-                    </button>
-                  )}
+                  <button
+                    onClick={() => startEdit(item)}
+                    className="text-slate-500 hover:text-dme-orange dark:text-slate-400"
+                  >
+                    Edit
+                  </button>
                   <button
                     onClick={() => remove(item[idField])}
                     className="text-red-500 hover:text-red-400 dark:text-red-400 dark:hover:text-red-300"
                   >
-                    {schema.readOnly ? "Dismiss" : "Delete"}
+                    Delete
                   </button>
                 </div>
               </div>

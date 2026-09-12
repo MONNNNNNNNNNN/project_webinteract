@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ContentManager from "./ContentManager.jsx";
+import UnansweredManager from "./UnansweredManager.jsx";
 import { CONTENT_SCHEMAS } from "./contentSchemas.js";
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [checking, setChecking] = useState(true);
   const [email, setEmail] = useState(null);
+  const [canDraft, setCanDraft] = useState(false);
   const [activeKey, setActiveKey] = useState(CONTENT_SCHEMAS[0].key);
 
   useEffect(() => {
@@ -21,6 +23,7 @@ export default function AdminDashboard() {
           return;
         }
         setEmail(data.email);
+        setCanDraft(Boolean(data.canDraft));
       })
       .catch(() => navigate("/admin"))
       .finally(() => setChecking(false));
@@ -112,7 +115,11 @@ export default function AdminDashboard() {
       </div>
 
       {/* key remounts the manager on tab change so no state leaks between domains */}
-      <ContentManager key={activeSchema.key} schema={activeSchema} />
+      {activeSchema.view === "unanswered" ? (
+        <UnansweredManager key={activeSchema.key} canDraft={canDraft} />
+      ) : (
+        <ContentManager key={activeSchema.key} schema={activeSchema} />
+      )}
     </div>
   );
 }

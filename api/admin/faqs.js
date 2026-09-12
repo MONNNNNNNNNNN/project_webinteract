@@ -1,6 +1,7 @@
 import { readSession, sessionsDisabled, SESSIONS_DISABLED_MESSAGE } from "../_lib/session.js";
 import { DEFAULT_FAQS } from "../_lib/mockData.js";
 import { SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, hasSupabase, hasSupabaseAdmin } from "../_lib/env.js";
+import { hasAdminPlaceholder, PLACEHOLDER_ERROR } from "../../shared/faqDraft.js";
 
 // Simulated store — used when Supabase isn't configured. Resets on server
 // restart; module-scope array survives across requests within one process.
@@ -84,6 +85,17 @@ export default async function handler(req, res) {
   }
 
   const useSupabase = hasSupabaseAdmin;
+
+  // An unfilled "[ADMIN: …]" from a Gemini draft would reach the chatbot, and
+  // from there a prospective student, as the answer. Refused on every write,
+  // not only from the Unanswered form — see shared/faqDraft.js.
+  if (
+    (req.method === "POST" || req.method === "PUT") &&
+    (hasAdminPlaceholder(req.body?.question) || hasAdminPlaceholder(req.body?.answer))
+  ) {
+    res.status(400).json({ error: PLACEHOLDER_ERROR });
+    return;
+  }
 
   if (req.method === "POST") {
     const question = (req.body?.question || "").toString().trim();

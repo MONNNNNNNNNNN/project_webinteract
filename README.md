@@ -65,7 +65,7 @@ api/
   careers.js          job listings, three cache layers, monthly quota ceiling
   content.js          one endpoint for all 9 admin-editable content types
   upload.js           signed one-shot upload URL, browser -> Supabase Storage
-  admin/              login · logout · session · faqs · rebuild-kb
+  admin/              login · logout · session · faqs · rebuild-kb · draft-answer
   _lib/               shared server code. The leading underscore matters:
                       Vercel treats it as a helper directory, not endpoints.
     env.js              every secret read in one place
@@ -89,6 +89,7 @@ shared/
   tuitionData.js          fee tables, plus grandTotal() and formatBaht()
   staffData.js            19 lecturers
   kbChunks.js             the chatbot's chunk builder, over site_* rows
+  faqDraft.js             the [ADMIN: …] placeholder check, client and server
 ```
 
 The four data files do two jobs, which is why they sit outside both `src/` and

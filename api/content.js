@@ -106,6 +106,7 @@ const INTEGER_COLUMNS = new Set(["sort_order", "amount", "semester_fee", "year",
 // prospective student budgets against, so a typo must be rejected rather than
 // coerced to something plausible.
 const NON_NEGATIVE_COLUMNS = new Set(["amount", "semester_fee", "year", "total_accumulated"]);
+const MAX_BULK_IDS = 200;
 
 // Simulated store, mirroring api/admin/faqs.js: lets the admin UI be exercised
 // with no Supabase configured.
@@ -225,14 +226,23 @@ async function updateRow(spec, id, patch) {
   return rows[0] || null;
 }
 
-async function deleteRow(spec, id) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${spec.table}?${pkOf(spec)}=eq.${encodeURIComponent(id)}`, {
-    method: "DELETE",
-    headers: { ...restHeaders(SUPABASE_SERVICE_ROLE_KEY), Prefer: "return=representation" },
-  });
+// PostgREST in.() list. Each value is double-quoted with backslash escapes, so
+// a code like "EN 843 402", or anything containing a comma, stays one value.
+function inList(ids) {
+  return ids.map((id) => `"${id.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`).join(",");
+}
+
+/** Delete by primary key. Returns how many rows actually went. */
+async function deleteRows(spec, ids) {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/${spec.table}?${pkOf(spec)}=in.(${encodeURIComponent(inList(ids))})`,
+    {
+      method: "DELETE",
+      headers: { ...restHeaders(SUPABASE_SERVICE_ROLE_KEY), Prefer: "return=representation" },
+    }
+  );
   if (!res.ok) throw new Error(`${spec.table} delete ${res.status}`);
-  const rows = await res.json();
-  return rows.length > 0;
+  return (await res.json()).length;
 }
 
 export default async function handler(req, res) {
@@ -342,26 +352,40 @@ export default async function handler(req, res) {
     }
 
     if (req.method === "DELETE") {
-      const id = (req.query?.id || "").toString();
-      if (!id) {
+      // `ids` (comma-separated) deletes several rows in one request: the
+      // Unanswered tab clears a question asked four times as one entry. `id`
+      // still works for a single row.
+      const ids = (req.query?.ids ?? req.query?.id ?? "")
+        .toString()
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (!ids.length) {
         res.status(400).json({ error: "id is required" });
+        return;
+      }
+      // Capped so one request cannot become an unbounded filter.
+      if (ids.length > MAX_BULK_IDS) {
+        res.status(400).json({ error: `At most ${MAX_BULK_IDS} ids per request` });
         return;
       }
       if (!useSupabase) {
         const before = simStore[type].length;
-        simStore[type] = simStore[type].filter((r) => r[pkOf(spec)] !== id);
-        if (simStore[type].length === before) {
+        simStore[type] = simStore[type].filter((r) => !ids.includes(r[pkOf(spec)]));
+        const deleted = before - simStore[type].length;
+        if (!deleted) {
           res.status(404).json({ error: "Not found" });
           return;
         }
-        res.status(200).json({ ok: true, simulated: true });
+        res.status(200).json({ ok: true, deleted, simulated: true });
         return;
       }
-      if (!(await deleteRow(spec, id))) {
+      const deleted = await deleteRows(spec, ids);
+      if (!deleted) {
         res.status(404).json({ error: "Not found" });
         return;
       }
-      res.status(200).json({ ok: true, simulated: false });
+      res.status(200).json({ ok: true, deleted, simulated: false });
       return;
     }
   } catch (err) {
