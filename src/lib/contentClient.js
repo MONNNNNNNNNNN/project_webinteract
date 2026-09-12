@@ -1,4 +1,4 @@
-// Client for admin-editable site content (api/content/[type].js).
+// Client for admin-editable site content (api/content.js?type=…).
 //
 // The pages that use this already ship their content as a static import, and
 // they keep rendering it while the fetch is in flight and forever after if the

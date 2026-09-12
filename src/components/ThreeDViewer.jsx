@@ -2,6 +2,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { PointerLockControls, OrbitControls, useGLTF, Loader } from "@react-three/drei";
 import * as THREE from "three";
+import { LOCATIONS } from "../../shared/locations.js";
 
 const WALK_SPEED = 4; // meters/second
 const EYE_HEIGHT = 1.6; // meters — fixed, assumes a flat floor
@@ -26,6 +27,10 @@ function useKeyboardMove() {
       ArrowRight: "right",
     };
     function onDown(e) {
+      // Listening on window catches keys meant for a text box too, so typing
+      // "was" into the chat walked the camera. keyup stays unguarded: releasing
+      // a key can only ever stop movement.
+      if (e.target instanceof Element && e.target.closest("input, textarea, select, [contenteditable]")) return;
       const key = keyMap[e.code];
       if (key) move.current[key] = true;
     }
@@ -134,4 +139,6 @@ export default function ThreeDViewer({ modelUrl }) {
   );
 }
 
-useGLTF.preload("/3d/Base_floor_model.glb");
+// Paths come from shared/locations.js, so adding a room's model there is the
+// only change needed to preload it.
+LOCATIONS.filter((l) => l.modelUrl).forEach((l) => useGLTF.preload(l.modelUrl));

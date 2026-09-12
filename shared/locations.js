@@ -49,10 +49,6 @@ export const LOCATIONS = [
   },
 ];
 
-export function locationById(id) {
-  return LOCATIONS.find((l) => l.id === id) || LOCATIONS[0];
-}
-
 /** "https://www.google.com/maps/dir/?api=1&destination=..." — no origin, so Google routes from the user. */
 export function directionsUrl(location) {
   return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(location.mapDestination)}`;

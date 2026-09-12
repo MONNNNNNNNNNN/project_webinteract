@@ -49,6 +49,8 @@ src/
   lib/                browser-side helpers ONLY
     contentClient.js    static-first loading with a database swap
     careersCache.js     localStorage cache for job listings
+    media.js            image or video, decided by URL
+    topicIcons.js       the site's one icon vocabulary
   index.css           three Tailwind directives and a body background
 ```
 
@@ -62,13 +64,15 @@ api/
   chat.js             the chatbot: retrieve, then optionally phrase with Gemini
   careers.js          job listings, three cache layers, monthly quota ceiling
   content.js          one endpoint for all 9 admin-editable content types
-  admin/              login · logout · session · faqs
+  upload.js           signed one-shot upload URL, browser -> Supabase Storage
+  admin/              login · logout · session · faqs · rebuild-kb
   _lib/               shared server code. The leading underscore matters:
                       Vercel treats it as a helper directory, not endpoints.
     env.js              every secret read in one place
-    session.js          HMAC admin cookie
+    session.js          HMAC admin cookie + ADMIN_EMAILS allowlist
     knowledgeBase.js    retrieval against Postgres full-text search
     gemini.js           optional generation layer
+    kbSync.js           site_* tables -> kb_chunks (script and dashboard)
     jobCache.js         job cache and quota
     mockData.js         offline fallback facts
 ```
@@ -84,18 +88,24 @@ shared/
   curriculumData.js       4-year study plan and the 4 elective tracks
   tuitionData.js          fee tables, plus grandTotal() and formatBaht()
   staffData.js            19 lecturers
+  kbChunks.js             the chatbot's chunk builder, over site_* rows
 ```
 
-These four files do three jobs at once, which is why they sit outside both `src/`
-and `api/`:
+The four data files do two jobs, which is why they sit outside both `src/` and
+`api/`:
 
-1. **Seed** — `scripts/seed-content.js` writes them into the Postgres tables.
+1. **Seed** — `scripts/seed-content.js` writes them into the Postgres tables
+   (through `staticRows()` in `kbChunks.js`).
 2. **Fallback** — the pages import them and render them immediately, so a paused
    Supabase degrades to the site as built rather than to a blank page.
-3. **Knowledge source** — `scripts/build-kb.js` turns them into the 119 chunks
-   the chatbot retrieves from.
 
-Edit these in the repo and push. Nothing writes back to them.
+The live site renders the tables, not these files. Change live content in the
+admin dashboard. Editing a file here changes only the fallback until someone
+re-seeds, and re-seeding overwrites admin edits.
+
+The chatbot's 119 chunks are built from the **tables** by `kbChunks.js`, so they
+match what the pages show. Press **Rebuild chatbot knowledge** in the dashboard
+after editing fees, courses, the study plan or staff.
 
 > Migrations `0012`–`0014` still reference these as `src/lib/*.js` in their
 > comments. Migrations are immutable once applied, so those comments were left
@@ -104,16 +114,16 @@ Edit these in the repo and push. Nothing writes back to them.
 ## `scripts/` — operations
 
 ```
-node scripts/build-kb.js --dry-run    build the chunks, write nothing
-node scripts/build-kb.js              shared/ -> kb_chunks  (idempotent)
-node scripts/seed-content.js --apply  shared/ -> the site_* tables
+node scripts/build-kb.js --dry-run    build the chunks from shared/, no network
+node scripts/build-kb.js              site_* tables -> kb_chunks  (idempotent)
+node scripts/seed-content.js --apply  shared/ -> the site_* tables  (destructive)
 node scripts/prune-media.js           list unreferenced uploads
 node scripts/prune-media.js --apply   delete them
 ```
 
-Both need `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`. Re-run `build-kb.js`
-after editing anything in `shared/`, or the chatbot keeps answering from the
-previous version.
+All need `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (except `--dry-run`).
+After seeding, run `build-kb.js` (or press Rebuild in the dashboard) so the
+chatbot matches.
 
 **Seed with `seed-content.js`, not by pasting migration SQL.** Pasting the
 `INSERT`s into the Supabase SQL editor once mangled every non-ASCII character —
@@ -138,6 +148,9 @@ npm run build
 Nothing is required to run the site. With no environment variables the pages
 render their bundled content, the chatbot answers from six built-in facts, and
 Career Explorer shows simulated listings. See `.env.example`.
+
+A deploy needs `SESSION_SECRET` and `ADMIN_EMAILS` (comma-separated) in
+production and preview. Without either, admin sign-in refuses to run.
 
 `vite.config.js` runs the `api/*.js` handlers under `vite dev`, so the same files
 work locally and on Vercel without the Vercel CLI.
