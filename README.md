@@ -10,6 +10,142 @@ Working notes and conventions: `CLAUDE.md`
 
 ---
 
+## Calling a web API: JSearch job listings
+
+This section is the Lab 9 extra-credit write-up. The code that calls the API
+is `api/careers.js` (function `liveJobs()`), and the page that shows the result
+is `src/pages/CareerExplorer.jsx`.
+
+### 1. What is this API about?
+
+JSearch is a job-search API sold through RapidAPI. It collects job postings
+from Google for Jobs, which in turn gathers them from LinkedIn, Indeed,
+Glassdoor, JobsDB and company career pages. You send it a free-text query such
+as "software developer jobs Thailand" and it returns matching postings with the
+title, employer, location, posting date and a link to apply.
+
+DME Explorer uses it on the Career Explorer page so prospective students can
+see real, current jobs in Thailand for each career path the programme leads to
+(3D & Animation, Game Dev, AI & Data, Software). The free BASIC plan allows 200
+calls a month and returns about 10 postings per call. That is why the server
+caches results in Supabase and caps live calls at 170 a month instead of
+calling JSearch on every page view.
+
+### 2. The API URL that we call
+
+```
+GET https://jsearch.p.rapidapi.com/search-v2?query=<term>%20jobs%20Thailand&num_pages=1&country=th&date_posted=all
+```
+
+Required headers:
+
+```
+x-rapidapi-key:  <JSEARCH_API_KEY>
+x-rapidapi-host: jsearch.p.rapidapi.com
+```
+
+`<term>` depends on the interest the user picks: `software developer`,
+`game developer`, `3D animation artist`, `AI data science`, or
+`digital media` for "All". The call is made from the serverless function, never
+from the browser, so the API key stays secret. Our own endpoint in front of it
+is `GET /api/careers?interest=Software`.
+
+```js
+const url = `https://jsearch.p.rapidapi.com/search-v2?query=${encodeURIComponent(query)}&num_pages=1&country=th&date_posted=all`;
+const res = await fetch(url, {
+  headers: {
+    "x-rapidapi-key": JSEARCH_API_KEY,
+    "x-rapidapi-host": "jsearch.p.rapidapi.com",
+  },
+  signal: controller.signal, // aborted after 6 s
+});
+if (!res.ok) throw new Error(`JSearch API ${res.status}`);
+const data = await res.json();
+```
+
+### 3. The API result that we get
+
+JSearch returns a JSON object whose `data.jobs` array holds the postings. Each
+posting has around 40 fields. Abbreviated example for one posting:
+
+```json
+{
+  "status": "OK",
+  "request_id": "…",
+  "parameters": { "query": "software developer jobs thailand", "country": "th", "num_pages": 1 },
+  "data": {
+    "jobs": [
+      {
+        "job_id": "eGtwZzlZdTI5NEFHaXJSSkFBQUFBQT09…",
+        "job_title": "Backend Developer — Apache Fineract",
+        "employer_name": "Eminno",
+        "employer_logo": null,
+        "job_publisher": "LinkedIn",
+        "job_employment_type": "Full-time",
+        "job_apply_link": "https://th.linkedin.com/jobs/view/backend-developer-%E2%80%94-apache-fineract-at-eminno-4466835392",
+        "job_description": "…",
+        "job_is_remote": false,
+        "job_posted_at": "1 วันที่ผ่านมา",
+        "job_posted_at_datetime_utc": null,
+        "job_location": "กรุงเทพมหานคร",
+        "job_city": null,
+        "job_country": "TH",
+        "job_min_salary": null,
+        "job_max_salary": null,
+        "job_highlights": { "Qualifications": ["…"], "Responsibilities": ["…"] }
+      }
+    ]
+  }
+}
+```
+
+### 4. The partial result that we parse and display
+
+We keep only seven fields per posting. `liveJobs()` maps each JSearch posting
+to this shape before it is cached and sent to the browser:
+
+| Our field  | Taken from JSearch                                      | Shown as                     |
+|------------|---------------------------------------------------------|------------------------------|
+| `id`       | `job_id`                                                | key for caching / de-dupe    |
+| `title`    | `job_title`                                             | card heading                 |
+| `company`  | `employer_name`                                         | company name + letter avatar |
+| `location` | `job_city, job_country`, else first part of `job_location` | location line             |
+| `interest` | the interest we queried                                 | category filter              |
+| `postedAt` | `job_posted_at_datetime_utc`, else `job_posted_at`      | "posted" date                |
+| `url`      | `job_apply_link`                                        | "Apply" button               |
+
+Real response from `GET https://dmeexplorer.vercel.app/api/careers?interest=Software`
+(first posting, `id` shortened):
+
+```json
+{
+  "jobs": [
+    {
+      "id": "eGtwZzlZdTI5NEFHaXJSSkFBQUFBQT09…",
+      "title": "Backend Developer — Apache Fineract",
+      "company": "Eminno",
+      "location": "กรุงเทพมหานคร",
+      "interest": "Software",
+      "postedAt": "1 วันที่ผ่านมา",
+      "url": "https://th.linkedin.com/jobs/view/backend-developer-%E2%80%94-apache-fineract-at-eminno-4466835392"
+    }
+  ],
+  "simulated": false,
+  "source": "live",
+  "cached": true,
+  "added": 10,
+  "total": 60,
+  "budgetUsed": 58,
+  "budgetLimit": 170
+}
+```
+
+If the API key is missing, the call fails, or the monthly budget is spent, the
+endpoint serves cached postings or built-in sample postings instead
+(`simulated: true`), so the page never shows an error.
+
+---
+
 ## Where the frontend / backend line falls
 
 ```
