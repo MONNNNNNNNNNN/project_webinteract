@@ -61,6 +61,26 @@ function shuffled(arr) {
   return copy;
 }
 
+/**
+ * Collapse the same posting appearing under several JSearch ids.
+ *
+ * JSearch aggregates publishers, so one opening comes back as several rows with
+ * different `job_id`s — "Game Programmer (Japanese Game Company)" at REERACOEN
+ * arrived four times, and the page showed four identical cards. Deduping by id
+ * cannot catch it: the ids genuinely differ. Title plus company is the posting.
+ *
+ * Order is preserved, so the first (newest-seen) row wins and keeps its link.
+ */
+function dedupeByPosting(jobs) {
+  const seen = new Set();
+  return jobs.filter((j) => {
+    const key = `${(j.title || "").trim().toLowerCase()}|${(j.company || "").trim().toLowerCase()}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 function simulatedJobs(interest) {
   const jobs = interest ? MOCK_JOBS.filter((j) => j.interest === interest) : MOCK_JOBS;
   return shuffled(jobs);
@@ -261,7 +281,7 @@ export default async function handler(req, res) {
       // Re-read so the response is the merged, accumulated set rather than
       // just this batch — that's what makes the list grow over time.
       const merged = await readCachedJobs(interest, MAX_JOBS);
-      const jobs = merged.length ? merged : live;
+      const jobs = dedupeByPosting(merged.length ? merged : live);
 
       res.status(200).json({
         jobs,
@@ -293,7 +313,7 @@ export default async function handler(req, res) {
   // was already cached, rather than falling back past it to a staler list.
   if (live?.length) {
     const seen = new Set(live.map((j) => j.id));
-    const jobs = [...live, ...cached.filter((j) => !seen.has(j.id))].slice(0, MAX_JOBS);
+    const jobs = dedupeByPosting([...live, ...cached.filter((j) => !seen.has(j.id))]).slice(0, MAX_JOBS);
 
     res.status(200).json({
       jobs,
@@ -315,13 +335,14 @@ export default async function handler(req, res) {
       meta?.last_fetch_at && Number.isFinite(sinceLastFetch)
         ? new Date(new Date(meta.last_fetch_at).getTime() + MIN_LIVE_INTERVAL_MS).toISOString()
         : null;
+    const jobs = dedupeByPosting(cached);
 
     res.status(200).json({
-      jobs: cached,
+      jobs,
       simulated: false,
       source: "cache",
       cached: true,
-      total: cached.length,
+      total: jobs.length,
       lastFetchedAt: meta?.last_fetch_at || null,
       nextLiveFetchAt,
       note: budgetSpent
