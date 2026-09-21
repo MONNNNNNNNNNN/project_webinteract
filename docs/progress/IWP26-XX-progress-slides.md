@@ -408,7 +408,9 @@ functionality, the demo and the Gen AI marks.
 split), the dates in Slide 14, and the two admin screenshots.
 
 **Extra credit:**
-- *Real user feedback (+1)* — 5 students, 3 fixed tasks, a 4-question form; put two
-  quotes and one measured fix on Slide 9.
+- *Real user feedback (+1)* — the survey is written and ready to paste into Google
+  Forms: `docs/progress/user-survey.md` (3 timed tasks with answer keys, then
+  ratings, Thai + English). Run it with 5 first-year students, then put the
+  numbers, two quotes and one shipped fix on Slide 9.
 - *English without reading (+1)* — the "Say:" notes are written to be spoken. Two
   rehearsals against a timer, then present from the screenshots alone.
