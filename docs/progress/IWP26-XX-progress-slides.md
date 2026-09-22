@@ -374,6 +374,11 @@ which is why the guardrails (placeholder block, budget cap, allowlist) are all
   terms (course codes, fees, lecturer names) matter more than semantic similarity.
   Thai uses trigram matching because Thai has no spaces between words.
 - **Limits:** Vercel Hobby allows 12 functions; we use 10.
+- **Where every figure comes from:** the resources table in `progress-doc.md` §10 —
+  official programme page, the 2026 Course Map, the TQF.2 curriculum document, the
+  department staff directory, JSearch, Supabase, Gemini. Have it open for the
+  "is this data official?" question; the Thai tuition rate is the one marked
+  "to confirm with the faculty".
 
 ---
 
